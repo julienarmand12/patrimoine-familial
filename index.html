@@ -268,15 +268,63 @@ function assetForm(assetId=null){
  +field('type','Catégorie','select',a?.type||'Immobilier',['Immobilier','Bien immobilier locatif','Résidence principale','Épargne','Véhicule','Mobilier / objets','Autre'])
  +field('value','Valeur estimée actuelle (€)','number',a?.value??'0')
  +field('purchasePrice',"Prix d'achat (€)",'number',a?.purchasePrice??'0')
+ +field('purchaseDate',"Date d'achat",'date',a?.purchaseDate||'')
  +field('notaryFees','Frais de notaire (€)','number',a?.notaryFees??'0')
- +field('works','Travaux (€)','number',a?.works??'0')
+ +field('works','Travaux initiaux (€)','number',a?.works??'0')
  +field('rent','Loyer mensuel perçu (€)','number',a?.rent??'0')
  +field('owner','Propriétaire','select',a?.owner||'Commun',owners())
  +field('notes','Notes','text',a?.notes||'');
  modal(a?'Modifier un actif':'Ajouter un actif',form,d=>{
   const values={...d,value:num(d.value),purchasePrice:num(d.purchasePrice),notaryFees:num(d.notaryFees),works:num(d.works),rent:num(d.rent)};
-  if(a)Object.assign(a,values);else db.assets.push({id:id(),loans:[],...values});
+  if(a)Object.assign(a,values);else db.assets.push({id:id(),loans:[],rentalHistory:[],...values});
  });
+}
+function rentalHistoryForm(assetId){
+ const a=db.assets.find(x=>String(x.id)===String(assetId));if(!a)return;
+ const first=a.purchaseDate?Number(a.purchaseDate.slice(0,4)):new Date().getFullYear(),last=new Date().getFullYear();
+ const history=Array.isArray(a.rentalHistory)?a.rentalHistory:[];
+ if(!a.purchaseDate){alert("Renseigne d'abord la date d'achat dans Modifier le bien.");return}
+ const years=[...new Set([...Array.from({length:Math.max(1,Math.min(60,last-first+1))},(_,i)=>first+i),...history.map(x=>Number(x.year))])].filter(y=>y>=first&&y<=last).sort((x,y)=>x-y);
+ const fields=years.map(year=>{
+  const h=history.find(x=>Number(x.year)===year)||{};
+  return `<div class="card" style="padding:12px;margin:10px 0;box-shadow:none"><b>${year}</b><div class="formgrid" style="margin-top:9px">
+  ${field('rent_'+year,'Loyers réellement encaissés (€)','number',h.rent??'0')}
+  ${field('tax_'+year,'Taxe foncière (€)','number',h.tax??'0')}
+  ${field('charges_'+year,'Charges de copropriété / gestion (€)','number',h.charges??'0')}
+  ${field('insurance_'+year,'Assurance (€)','number',h.insurance??'0')}
+  ${field('maintenance_'+year,'Entretien et travaux (€)','number',h.maintenance??'0')}
+  ${field('other_'+year,'Vacance locative et autres frais (€)','number',h.other??'0')}
+  </div></div>`;
+ }).join('');
+ modal('Loyers & dépenses — '+a.name,fields||'<p>Aucune année à renseigner.</p>',d=>{
+  a.rentalHistory=years.map(year=>({year,rent:num(d['rent_'+year]),tax:num(d['tax_'+year]),charges:num(d['charges_'+year]),insurance:num(d['insurance_'+year]),maintenance:num(d['maintenance_'+year]),other:num(d['other_'+year])}));
+ });
+}
+function rentalMetrics(a){
+ const history=(a.rentalHistory||[]).filter(h=>Number(h.year)>0).sort((x,y)=>x.year-y.year);
+ const cost=num(a.purchasePrice)+num(a.notaryFees)+num(a.works),latest=history[history.length-1];
+ const gross=latest&&cost>0?num(latest.rent)/cost*100:null;
+ const net=latest&&cost>0?(num(latest.rent)-num(latest.tax)-num(latest.charges)-num(latest.insurance)-num(latest.maintenance)-num(latest.other))/cost*100:null;
+ let flows=[];
+ if(a.purchaseDate&&cost>0&&num(a.value)>0){
+  flows.push({date:a.purchaseDate,amount:-cost});
+  history.forEach(h=>{
+   const amount=num(h.rent)-num(h.tax)-num(h.charges)-num(h.insurance)-num(h.maintenance)-num(h.other);
+   const date=Number(h.year)===new Date().getFullYear()?today():h.year+'-12-31';
+   if(date>=a.purchaseDate&&amount!==0)flows.push({date,amount});
+  });
+  flows.push({date:today(),amount:num(a.value)});
+ }
+ const tri=flows.length>1&&flows.some(x=>x.amount<0)&&flows.some(x=>x.amount>0)?xirrEstimate(flows):null;
+ return {gross,net,tri,latestYear:latest?.year,historyCount:history.length};
+}
+function xirrEstimate(flows){
+ const base=new Date(flows[0].date+'T12:00:00').getTime();
+ const npv=r=>flows.reduce((sum,f)=>sum+f.amount/Math.pow(1+r,(new Date(f.date+'T12:00:00').getTime()-base)/86400000/365),0);
+ let lo=-.9999,hi=10,flo=npv(lo),fhi=npv(hi);
+ if(!Number.isFinite(flo)||!Number.isFinite(fhi)||flo*fhi>0)return null;
+ for(let i=0;i<160;i++){const mid=(lo+hi)/2,f=npv(mid);if(Math.abs(f)<.01)return mid*100;if(f*flo>0){lo=mid;flo=f}else{hi=mid;fhi=f}}
+ return ((lo+hi)/2)*100;
 }
 function editAssetButton(id){return `<button class="btn small" data-edit-asset="${id}">Modifier</button>`}
 function assetGain(a){return num(a.value)-num(a.purchasePrice)-num(a.notaryFees)-num(a.works)}
@@ -336,12 +384,13 @@ function renderAssets(){
  const loanBalance=db.assets.reduce((s,x)=>s+(x.loans||[]).reduce((v,l)=>v+loanTerms(l).balance,0),0);
  const loanMonthly=db.assets.reduce((s,x)=>s+(x.loans||[]).reduce((v,l)=>v+loanTerms(l).payment,0),0);
  document.getElementById('assetStats').innerHTML=statCard('Valeur des actifs',euro(sum))+statCard('Plus-value brute estimée',euro(gain),'Valeur actuelle moins prix et frais d’acquisition')+statCard('Crédits associés · restant dû',euro(loanBalance))+statCard('Mensualités des crédits',euro(loanMonthly))+statCard('Loyers mensuels',euro(rent))+statCard('Nombre de biens',db.assets.length);
- document.getElementById('assetTable').innerHTML=table(['Bien / actif','Type','Valeur actuelle','Coût d’acquisition','Plus-value brute','Loyer mensuel perçu','Crédits associés','Propriétaire','Notes',''],db.assets.map(x=>{
-  const cost=num(x.purchasePrice)+num(x.notaryFees)+num(x.works),gain=assetGain(x);
-  return `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.type)}</td><td class="amount">${euro(x.value)}</td><td>${euro(cost)}<div class="tiny">Achat ${euro(x.purchasePrice)} · Notaire ${euro(x.notaryFees)} · Travaux ${euro(x.works)}</div></td><td class="amount ${gain>=0?'positive':'negative'}">${euro(gain)}</td><td>${euro(x.rent)}</td><td>${assetLoanButtons(x.id,x.loans||[])}</td><td>${esc(x.owner)}</td><td>${esc(x.notes)}</td><td>${editAssetButton(x.id)} ${delButton('assets',x.id)}</td></tr>`;
+ document.getElementById('assetTable').innerHTML=table(['Bien / actif','Type','Valeur actuelle','Coût d’acquisition','Plus-value brute','Loyer mensuel perçu','Rendement brut / net','TRI net estimé','Historique annuel','Crédits associés','Propriétaire','Notes',''],db.assets.map(x=>{
+  const cost=num(x.purchasePrice)+num(x.notaryFees)+num(x.works),gain=assetGain(x),m=rentalMetrics(x);
+  return `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.type)}</td><td class="amount">${euro(x.value)}</td><td>${euro(cost)}<div class="tiny">Achat ${euro(x.purchasePrice)} · Notaire ${euro(x.notaryFees)} · Travaux initiaux ${euro(x.works)}</div></td><td class="amount ${gain>=0?'positive':'negative'}">${euro(gain)}</td><td>${euro(x.rent)}</td><td>${m.gross===null?'—':m.gross.toFixed(2).replace('.',',')+' %'}<div class="tiny">Net : ${m.net===null?'—':m.net.toFixed(2).replace('.',',')+' %'} · Base : ${m.latestYear||'—'}</div></td><td class="amount">${m.tri===null?'À compléter':m.tri.toFixed(2).replace('.',',')+' %'}</td><td><button class="btn small" data-rental-history="${x.id}">Saisir / modifier (${m.historyCount} an(s))</button></td><td>${assetLoanButtons(x.id,x.loans||[])}</td><td>${esc(x.owner)}</td><td>${esc(x.notes)}</td><td>${editAssetButton(x.id)} ${delButton('assets',x.id)}</td></tr>`;
  }));
  bindDelete();
  document.querySelectorAll('[data-edit-asset]').forEach(b=>b.onclick=()=>assetForm(b.dataset.editAsset));
+ document.querySelectorAll('[data-rental-history]').forEach(b=>b.onclick=()=>rentalHistoryForm(b.dataset.rentalHistory));
  document.querySelectorAll('[data-add-loan]').forEach(b=>b.onclick=()=>loanForm(b.dataset.addLoan));
  document.querySelectorAll('[data-edit-loan]').forEach(b=>b.onclick=()=>loanForm(b.dataset.editLoan,b.dataset.loanId));
  document.querySelectorAll('[data-delete-loan]').forEach(b=>b.onclick=()=>{const a=db.assets.find(x=>String(x.id)===b.dataset.deleteLoan);if(a&&confirm('Supprimer ce crédit associé ?')){a.loans=(a.loans||[]).filter(l=>String(l.id)!==b.dataset.loanId);save()}});
@@ -401,7 +450,7 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 installButton.addEventListener('click',async()=>{if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installButton.hidden=true;}else{alert('Pour installer l’application : sur iPhone, ouvrez le menu Partager puis « Sur l’écran d’accueil ». Sur Android, ouvrez le menu ⋮ de Chrome puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');}});
 window.addEventListener('appinstalled',()=>{installButton.hidden=true;});
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){installButton.hidden=false;}
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=15',{updateViaCache:'none'}).catch(()=>{}))}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=16',{updateViaCache:'none'}).catch(()=>{}))}
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 
 /* Menu mobile : initialisation unique après le chargement du DOM */
