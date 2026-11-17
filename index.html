@@ -137,7 +137,7 @@ input,select,textarea{border-radius:10px;border-color:#dfe6df;background:#fffefa
 @media(max-width:950px){
  .mobile-menu-btn{display:inline-flex!important;visibility:visible!important;position:relative;z-index:1001;cursor:pointer;touch-action:manipulation}
  aside{z-index:1000!important}
- aside>div:nth-child(2){display:none!important;position:absolute!important;top:calc(100% - 1px)!important;left:10px!important;right:10px!important;width:auto!important;max-height:75vh;overflow-y:auto!important;background:#173236!important;border:1px solid #54736a!important;border-radius:14px!important;padding:12px!important;box-shadow:0 16px 36px #10252266!important;z-index:1002!important}
+ aside>div:nth-child(2){display:none!important;position:absolute!important;top:var(--mobile-menu-top,120px)!important;left:12px!important;right:12px!important;width:auto!important;max-height:calc(100vh - var(--mobile-menu-top,120px) - 16px);overflow-y:auto!important;background:#173236!important;border:1px solid #54736a!important;border-radius:14px!important;padding:12px!important;box-shadow:0 16px 36px #10252266!important;z-index:1002!important}
  aside.menu-open>div:nth-child(2){display:block!important}
  aside.menu-open nav#nav{display:flex!important;flex-direction:column!important;gap:5px!important;overflow:visible!important}
  aside.menu-open nav#nav .navbtn{display:flex!important;width:100%!important;min-height:48px!important;white-space:normal!important;text-align:left!important;justify-content:flex-start!important;opacity:1!important;visibility:visible!important}
@@ -343,6 +343,13 @@ if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_eve
  if(!button||!aside||!nav)return;
  button.addEventListener('click',function(){
   const opened=aside.classList.toggle('menu-open');
+  const panel=aside.children[1];
+  if(opened){
+   const rect=button.getBoundingClientRect();
+   panel.style.setProperty('--mobile-menu-top',Math.ceil(rect.bottom+8)+'px');
+  }else{
+   panel.style.removeProperty('--mobile-menu-top');
+  }
   button.setAttribute('aria-expanded',opened?'true':'false');
   button.textContent=opened?'✕ Fermer':'☰ Menu';
  });
