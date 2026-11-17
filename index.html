@@ -171,7 +171,7 @@ input,select,textarea{border-radius:10px;border-color:#dfe6df;background:#fffefa
 <section class="page active" id="page-dashboard">
  <div class="grid stats">
   <div class="card"><div class="statlabel">Patrimoine net estimé <span>◈</span></div><div class="statvalue" id="netWorth">—</div><div class="statfoot">Actifs moins capitaux restant dus</div></div>
-  <div class="card"><div class="statlabel">Revenus mensuels <span>↗</span></div><div class="statvalue" id="incomeTotal">—</div><div class="statfoot">Opérations récurrentes saisies</div></div>
+  <div class="card"><div class="statlabel">Revenus mensuels <span>↗</span></div><div class="statvalue" id="incomeTotal">—</div><div class="statfoot">Opérations récurrentes + loyers locatifs</div></div>
   <div class="card"><div class="statlabel">Dépenses mensuelles <span>↘</span></div><div class="statvalue" id="expenseTotal">—</div><div class="statfoot">Hors transferts entre vos comptes</div></div>
   <div class="card"><div class="statlabel">Capacité mensuelle <span>◎</span></div><div class="statvalue" id="capacity">—</div><div class="statfoot">Revenus moins dépenses récurrentes</div></div>
  </div>
@@ -265,12 +265,12 @@ function txForm(){modal('Nouvelle opération',field('type','Type','select','Dép
 function assetForm(assetId=null){
  const a=assetId?db.assets.find(x=>String(x.id)===String(assetId)):null;
  const form=field('name','Nom du bien / actif','text',a?.name||'')
- +field('type','Catégorie','select',a?.type||'Immobilier',['Immobilier','Résidence principale','Épargne','Véhicule','Mobilier / objets','Autre'])
+ +field('type','Catégorie','select',a?.type||'Immobilier',['Immobilier','Bien immobilier locatif','Résidence principale','Épargne','Véhicule','Mobilier / objets','Autre'])
  +field('value','Valeur estimée actuelle (€)','number',a?.value??'0')
  +field('purchasePrice',"Prix d'achat (€)",'number',a?.purchasePrice??'0')
  +field('notaryFees','Frais de notaire (€)','number',a?.notaryFees??'0')
  +field('works','Travaux (€)','number',a?.works??'0')
- +field('rent','Loyer mensuel (€)','number',a?.rent??'0')
+ +field('rent','Loyer mensuel perçu (€)','number',a?.rent??'0')
  +field('owner','Propriétaire','select',a?.owner||'Commun',owners())
  +field('notes','Notes','text',a?.notes||'');
  modal(a?'Modifier un actif':'Ajouter un actif',form,d=>{
@@ -320,7 +320,7 @@ function delButton(kind,id){return `<button class="btn small danger" data-del="$
 function bindDelete(){document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(!confirm('Supprimer cet élément ?'))return;db[b.dataset.del]=db[b.dataset.del].filter(x=>String(x.id)!==b.dataset.id);save()})}
 function renderDash(){
  let t=totals(), assets=db.assets.reduce((s,x)=>s+num(x.value),0)+db.accounts.reduce((s,x)=>s+num(x.value),0), debts=db.credits.reduce((s,x)=>s+num(x.capital),0)+db.assets.reduce((s,a)=>s+(a.loans||[]).reduce((v,l)=>v+loanTerms(l).balance,0),0), net=assets-debts;
- set('netWorth',euro(net));set('incomeTotal',euro(t.inc));set('expenseTotal',euro(t.out));set('capacity',euro(t.inc-t.out));set('dashIncome',euro(t.inc));set('dashExpense',euro(t.out));set('dashBalance',euro(t.inc-t.out));
+ set('netWorth',euro(net));set('incomeTotal',euro(t.inc));document.getElementById('incomeTotal').nextElementSibling.textContent='Dont loyers locatifs : '+euro(t.rents)+' / mois';set('expenseTotal',euro(t.out));set('capacity',euro(t.inc-t.out));set('dashIncome',euro(t.inc));set('dashExpense',euro(t.out));set('dashBalance',euro(t.inc-t.out));
  let max=Math.max(t.inc,t.out,1);document.getElementById('flowChart').innerHTML=[['Revenus',t.inc],['Dépenses',t.out],['Solde',Math.max(0,t.inc-t.out)]].map(([n,v])=>`<div class="monthbar"><i style="height:${Math.max(2,v/max*100)}%"></i><small>${n}</small></div>`).join('');
  let cats=[['Immobilier',db.assets.filter(a=>a.type.includes('Immobilier')||a.type.includes('Résidence')).reduce((s,a)=>s+a.value,0)],['Comptes & placements',db.accounts.reduce((s,a)=>s+a.value,0)],['Autres actifs',db.assets.filter(a=>!a.type.includes('Immobilier')&&!a.type.includes('Résidence')).reduce((s,a)=>s+a.value,0)]];
  let colors=['#16866b','#6687bd','#d8b66f'];document.getElementById('assetLegend').innerHTML=cats.map((c,i)=>`<div><i class="dot" style="background:${colors[i]}"></i>${c[0]}<br><b>${euro(c[1])}</b></div>`).join('');
@@ -336,7 +336,7 @@ function renderAssets(){
  const loanBalance=db.assets.reduce((s,x)=>s+(x.loans||[]).reduce((v,l)=>v+loanTerms(l).balance,0),0);
  const loanMonthly=db.assets.reduce((s,x)=>s+(x.loans||[]).reduce((v,l)=>v+loanTerms(l).payment,0),0);
  document.getElementById('assetStats').innerHTML=statCard('Valeur des actifs',euro(sum))+statCard('Plus-value brute estimée',euro(gain),'Valeur actuelle moins prix et frais d’acquisition')+statCard('Crédits associés · restant dû',euro(loanBalance))+statCard('Mensualités des crédits',euro(loanMonthly))+statCard('Loyers mensuels',euro(rent))+statCard('Nombre de biens',db.assets.length);
- document.getElementById('assetTable').innerHTML=table(['Bien / actif','Type','Valeur actuelle','Coût d’acquisition','Plus-value brute','Loyer mensuel','Crédits associés','Propriétaire','Notes',''],db.assets.map(x=>{
+ document.getElementById('assetTable').innerHTML=table(['Bien / actif','Type','Valeur actuelle','Coût d’acquisition','Plus-value brute','Loyer mensuel perçu','Crédits associés','Propriétaire','Notes',''],db.assets.map(x=>{
   const cost=num(x.purchasePrice)+num(x.notaryFees)+num(x.works),gain=assetGain(x);
   return `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.type)}</td><td class="amount">${euro(x.value)}</td><td>${euro(cost)}<div class="tiny">Achat ${euro(x.purchasePrice)} · Notaire ${euro(x.notaryFees)} · Travaux ${euro(x.works)}</div></td><td class="amount ${gain>=0?'positive':'negative'}">${euro(gain)}</td><td>${euro(x.rent)}</td><td>${assetLoanButtons(x.id,x.loans||[])}</td><td>${esc(x.owner)}</td><td>${esc(x.notes)}</td><td>${editAssetButton(x.id)} ${delButton('assets',x.id)}</td></tr>`;
  }));
@@ -401,7 +401,7 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 installButton.addEventListener('click',async()=>{if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installButton.hidden=true;}else{alert('Pour installer l’application : sur iPhone, ouvrez le menu Partager puis « Sur l’écran d’accueil ». Sur Android, ouvrez le menu ⋮ de Chrome puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');}});
 window.addEventListener('appinstalled',()=>{installButton.hidden=true;});
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){installButton.hidden=false;}
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=14',{updateViaCache:'none'}).catch(()=>{}))}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=15',{updateViaCache:'none'}).catch(()=>{}))}
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 
 /* Menu mobile : initialisation unique après le chargement du DOM */
