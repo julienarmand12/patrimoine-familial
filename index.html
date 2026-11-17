@@ -111,6 +111,27 @@ input,select,textarea{border-radius:10px;border-color:#dfe6df;background:#fffefa
  .tablewrap table{min-width:560px}
 }
 
+
+/* Tableaux mobiles : défilement limité au tableau, jamais à toute la page */
+@media(max-width:950px){
+ html,body{width:100%;max-width:100%;overflow-x:hidden}
+ .app,main,#content,.page,.grid,.two,.three,.stats,.card{min-width:0;max-width:100%}
+ .tablewrap{display:block;width:100%;max-width:100%;min-width:0;overflow-x:auto!important;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y;scrollbar-width:thin;position:relative}
+ .tablewrap>table{width:max-content!important;min-width:620px!important;max-width:none!important;table-layout:auto}
+ .tablewrap th,.tablewrap td{white-space:nowrap}
+ .tablewrap::-webkit-scrollbar{height:5px}
+ .tablewrap::-webkit-scrollbar-thumb{background:#9aafa3;border-radius:8px}
+ .tablewrap::-webkit-scrollbar-track{background:#edf1ed}
+ .card,.section,.panel{overflow-x:hidden;min-width:0}
+}
+@media(max-width:520px){
+ main{width:100%;min-width:0}
+ .stats,.two,.three{grid-template-columns:minmax(0,1fr)!important}
+ .tablewrap{margin-left:0;margin-right:0;border-radius:12px}
+ .tablewrap>table{min-width:600px!important}
+ .tablewrap th,.tablewrap td{padding:9px 10px;font-size:12px}
+}
+
 </style></head>
 <body>
 <div class="app">
