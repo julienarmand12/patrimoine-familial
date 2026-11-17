@@ -144,6 +144,7 @@ input,select,textarea{border-radius:10px;border-color:#dfe6df;background:#fffefa
 }
 
 
+/* Plus-values : montant brut estimatif basé sur le coût d'acquisition déclaré */
 /* Les fenêtres et panneaux prioritaires doivent toujours passer devant le menu mobile */
 .modalback{z-index:2000!important}
 .authback{z-index:2100!important}
@@ -261,7 +262,24 @@ document.getElementById('closeModal').onclick=document.getElementById('cancelMod
 document.getElementById('modalForm').onsubmit=e=>{e.preventDefault();let d=Object.fromEntries(new FormData(e.target));modalSave(d);closeModal();e.target.reset();save()};
 const owners=()=>[db.people[0],db.people[1],'Commun'];
 function txForm(){modal('Nouvelle opération',field('type','Type','select','Dépense',['Revenu','Dépense'])+field('date','Date','date',today())+field('label','Libellé')+field('category','Catégorie','select','Autre',['Salaire','Loyers','Prestations','Alimentation','Logement','Transport','Santé','Loisirs','Enfants','Impôts','Énergie','Assurances','Abonnements','Travaux','Épargne / investissement','Autre'])+field('amount','Montant (€)','number','')+field('owner','Attribué à','select','Commun',owners())+field('recurring','Récurrent ?','select','Non',['Non','Oui'])+field('notes','Notes'),d=>db.transactions.unshift({id:id(),...d,amount:num(d.amount)}))}
-function assetForm(){modal('Ajouter un actif',field('name','Nom du bien / actif')+field('type','Catégorie','select','Immobilier',['Immobilier','Résidence principale','Épargne','Véhicule','Mobilier / objets','Autre'])+field('value','Valeur estimée (€)','number','0')+field('rent','Loyer mensuel (€)','number','0')+field('owner','Propriétaire','select','Commun',owners())+field('notes','Notes'),d=>db.assets.push({id:id(),...d,value:num(d.value),rent:num(d.rent)}))}
+function assetForm(assetId=null){
+ const a=assetId?db.assets.find(x=>String(x.id)===String(assetId)):null;
+ const form=field('name','Nom du bien / actif','text',a?.name||'')
+ +field('type','Catégorie','select',a?.type||'Immobilier',['Immobilier','Résidence principale','Épargne','Véhicule','Mobilier / objets','Autre'])
+ +field('value','Valeur estimée actuelle (€)','number',a?.value??'0')
+ +field('purchasePrice',"Prix d'achat (€)",'number',a?.purchasePrice??'0')
+ +field('notaryFees','Frais de notaire (€)','number',a?.notaryFees??'0')
+ +field('works','Travaux (€)','number',a?.works??'0')
+ +field('rent','Loyer mensuel (€)','number',a?.rent??'0')
+ +field('owner','Propriétaire','select',a?.owner||'Commun',owners())
+ +field('notes','Notes','text',a?.notes||'');
+ modal(a?'Modifier un actif':'Ajouter un actif',form,d=>{
+  const values={...d,value:num(d.value),purchasePrice:num(d.purchasePrice),notaryFees:num(d.notaryFees),works:num(d.works),rent:num(d.rent)};
+  if(a)Object.assign(a,values);else db.assets.push({id:id(),...values});
+ });
+}
+function editAssetButton(id){return `<button class="btn small" data-edit-asset="${id}">Modifier</button>`}
+function assetGain(a){return num(a.value)-num(a.purchasePrice)-num(a.notaryFees)-num(a.works)}
 function creditForm(){modal('Ajouter un crédit',field('name','Nom du crédit')+field('capital','Capital restant dû (€)','number','0')+field('monthly','Mensualité (€)','number','0')+field('rate','Taux annuel (%)','number','0')+field('end','Date de fin estimée','date','')+field('owner','Emprunteur','select','Commun',owners())+field('notes','Notes'),d=>db.credits.push({id:id(),...d,capital:num(d.capital),monthly:num(d.monthly),rate:num(d.rate)}))}
 function accountForm(){modal('Ajouter un compte ou placement',field('name','Nom du compte / placement')+field('type','Type','select','Compte courant',['Compte courant','Livret A','LDDS','LEP','PEA','Assurance-vie','Compte-titres','PER','Crypto-actifs','Espèces','Autre'])+field('value','Solde / valorisation (€)','number','0')+field('owner','Titulaire','select','Commun',owners())+field('updated','Date de valorisation','date',today())+field('notes','Notes'),d=>db.accounts.push({id:id(),...d,value:num(d.value)}))}
 function contractForm(){modal('Ajouter un contrat',field('kind','Nature','select','Assurance',['Assurance','Abonnement'])+field('name','Nom / organisme')+field('category','Catégorie','select','Autre',['Habitation','Auto','Emprunteur','Santé / mutuelle','Prévoyance','Téléphone','Internet','Streaming','Logiciel','Énergie','Autre'])+field('amount','Coût (€)','number','0')+field('period','Périodicité','select','Mensuelle',['Mensuelle','Trimestrielle','Semestrielle','Annuelle'])+field('owner','Titulaire','select','Commun',owners())+field('next','Prochaine échéance','date','')+field('notes','Notes'),d=>db.contracts.push({id:id(),...d,amount:num(d.amount)}))}
@@ -283,7 +301,17 @@ function renderDash(){
 }
 function set(id,v){document.getElementById(id).textContent=v}
 function renderTx(){let q=(document.getElementById('txSearch').value||'').toLowerCase(),ty=document.getElementById('txType').value,ow=document.getElementById('txOwner').value;let xs=db.transactions.filter(x=>(!ty||x.type===ty)&&(!ow||x.owner===ow)&&(`${x.label} ${x.category} ${x.notes}`.toLowerCase().includes(q))).sort((a,b)=>(b.date||'').localeCompare(a.date||''));set('txCount',xs.length+' opération(s)');document.getElementById('txTable').innerHTML=table(['Date','Libellé','Catégorie','Profil','Récurrence','Montant',''],xs.map(x=>`<tr><td>${esc(x.date)}</td><td><b>${esc(x.label)}</b></td><td>${esc(x.category)}</td><td>${esc(x.owner)}</td><td>${esc(x.recurring)}</td><td class="amount ${x.type==='Revenu'?'positive':'negative'}">${x.type==='Revenu'?'+':'−'}${euro(x.amount)}</td><td>${delButton('transactions',x.id)}</td></tr>`));bindDelete()}
-function renderAssets(){let sum=db.assets.reduce((s,x)=>s+num(x.value),0),rent=db.assets.reduce((s,x)=>s+num(x.rent),0);document.getElementById('assetStats').innerHTML=statCard('Valeur des actifs',euro(sum))+statCard('Loyers mensuels',euro(rent))+statCard('Nombre de biens',db.assets.length);document.getElementById('assetTable').innerHTML=table(['Bien / actif','Type','Valeur','Loyer mensuel','Propriétaire','Notes',''],db.assets.map(x=>`<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.type)}</td><td class="amount">${euro(x.value)}</td><td>${euro(x.rent)}</td><td>${esc(x.owner)}</td><td>${esc(x.notes)}</td><td>${delButton('assets',x.id)}</td></tr>`));bindDelete()}
+function renderAssets(){
+ const sum=db.assets.reduce((s,x)=>s+num(x.value),0),rent=db.assets.reduce((s,x)=>s+num(x.rent),0);
+ const gain=db.assets.reduce((s,x)=>s+assetGain(x),0);
+ document.getElementById('assetStats').innerHTML=statCard('Valeur des actifs',euro(sum))+statCard('Plus-value brute estimée',euro(gain),'Valeur actuelle moins prix et frais d’acquisition')+statCard('Loyers mensuels',euro(rent))+statCard('Nombre de biens',db.assets.length);
+ document.getElementById('assetTable').innerHTML=table(['Bien / actif','Type','Valeur actuelle','Coût d’acquisition','Plus-value brute','Loyer mensuel','Propriétaire','Notes',''],db.assets.map(x=>{
+  const cost=num(x.purchasePrice)+num(x.notaryFees)+num(x.works),gain=assetGain(x);
+  return `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.type)}</td><td class="amount">${euro(x.value)}</td><td>${euro(cost)}<div class="tiny">Achat ${euro(x.purchasePrice)} · Notaire ${euro(x.notaryFees)} · Travaux ${euro(x.works)}</div></td><td class="amount ${gain>=0?'positive':'negative'}">${euro(gain)}</td><td>${euro(x.rent)}</td><td>${esc(x.owner)}</td><td>${esc(x.notes)}</td><td>${editAssetButton(x.id)} ${delButton('assets',x.id)}</td></tr>`;
+ })).replace('<table','<table');
+ bindDelete();
+ document.querySelectorAll('[data-edit-asset]').forEach(b=>b.onclick=()=>assetForm(b.dataset.editAsset));
+}
 function statCard(a,b,c=''){return `<div class="card"><div class="statlabel">${a}</div><div class="statvalue">${b}</div><div class="statfoot">${c}</div></div>`}
 function renderCredits(){let cap=db.credits.reduce((s,x)=>s+x.capital,0),m=db.credits.reduce((s,x)=>s+x.monthly,0);document.getElementById('creditStats').innerHTML=statCard('Capital restant dû',euro(cap))+statCard('Mensualités cumulées',euro(m))+statCard('Nombre de crédits',db.credits.length);document.getElementById('creditTable').innerHTML=table(['Crédit','Capital restant','Mensualité','Taux','Fin estimée','Emprunteur',''],db.credits.map(x=>`<tr><td><b>${esc(x.name)}</b><div class="tiny">${esc(x.notes)}</div></td><td class="amount">${euro(x.capital)}</td><td>${euro(x.monthly)}</td><td>${num(x.rate).toLocaleString('fr-FR')} %</td><td>${esc(x.end||'—')}</td><td>${esc(x.owner)}</td><td>${delButton('credits',x.id)}</td></tr>`));bindDelete()}
 function renderAccounts(){let sum=db.accounts.reduce((s,x)=>s+x.value,0);document.getElementById('accountStats').innerHTML=statCard('Total des comptes & placements',euro(sum))+statCard('Nombre de supports',db.accounts.length)+statCard('Épargne financière',euro(sum));document.getElementById('accountTable').innerHTML=table(['Support','Type','Valorisation','Titulaire','Mise à jour',''],db.accounts.map(x=>`<tr><td><b>${esc(x.name)}</b><div class="tiny">${esc(x.notes)}</div></td><td>${esc(x.type)}</td><td class="amount">${euro(x.value)}</td><td>${esc(x.owner)}</td><td>${esc(x.updated)}</td><td>${delButton('accounts',x.id)}</td></tr>`));bindDelete()}
