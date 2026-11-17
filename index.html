@@ -52,6 +52,65 @@ input,select,textarea{border-radius:10px;border-color:#dfe6df;background:#fffefa
 @media(max-width:950px){aside{background:linear-gradient(180deg,#1b383a,#142b30);padding:12px 10px}nav{gap:5px}.navbtn{background:#ffffff08}.navbtn.active{background:#416c61}main{padding-top:17px}}
 @media(max-width:520px){.top{gap:12px}.actions{width:100%;gap:7px}.actions .btn{font-size:12px;padding:9px 10px}.syncpill{font-size:10px}.card{border-radius:15px}.stats .card{min-height:116px}.statvalue{font-size:23px}}
  .brandmark{display:block;flex:0 0 42px;width:42px;height:42px;object-fit:contain;background:transparent;border:0;border-radius:0;box-shadow:none;padding:0}
+
+/* Ergonomie smartphone : lecture portrait et navigation verticale */
+.mobile-menu-btn{display:none}
+@media(max-width:950px){
+ .app{display:block;min-height:100vh}
+ aside{position:relative;top:auto;height:auto;min-height:0;padding:10px 14px;display:block;z-index:25}
+ .brand{min-height:44px}
+ aside>div:nth-child(2){position:absolute;top:100%;left:10px;right:10px;display:none;background:#173236;border:1px solid #35534e;border-radius:14px;padding:10px;box-shadow:0 16px 36px #10252255;z-index:40}
+ aside.menu-open>div:nth-child(2){display:block}
+ nav{display:flex;flex-direction:column;overflow:visible;gap:4px;padding:0}
+ .navbtn{width:100%;white-space:normal;text-align:left;padding:13px 14px;min-height:46px}
+ .navbtn .ico{width:22px;flex:0 0 22px}
+ .navlabel,.sidebottom{display:none}
+ main{width:100%;max-width:760px;padding:14px 13px 36px}
+ .mobile-menu-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+ .top{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:10px;margin-bottom:16px}
+ .top>div:first-child{grid-column:1/-1;grid-row:1}
+ .top .mobile-menu-btn{grid-column:1;grid-row:2}
+ .top .actions{grid-column:2;grid-row:2;justify-content:flex-end;min-width:0}
+ .actions #exportTop,.actions #quickAdd{display:none}
+ .stats,.two,.three{grid-template-columns:minmax(0,1fr)}
+ .stats{gap:10px}
+ .card{min-width:0}
+ .donutwrap{flex-wrap:wrap;gap:14px}
+ .barrow{grid-template-columns:minmax(70px, .8fr) minmax(0,1.5fr) minmax(55px,.6fr);gap:7px}
+ .tablewrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+ table{min-width:560px}
+ .toolbar{display:grid;grid-template-columns:1fr 1fr}
+ .toolbar input,.toolbar select{max-width:none;min-width:0}
+ .toolbar .btn{width:100%}
+}
+@media(max-width:520px){
+ body{font-size:14px}
+ main{padding:12px 11px 30px}
+ .top h1{font-size:22px}
+ .eyebrow{font-size:9px}
+ .actions{gap:5px}
+ .actions .btn{font-size:11px;padding:8px 9px}
+ .syncpill{padding:7px 8px;max-width:120px;overflow:hidden}
+ .stats .card{min-height:0;padding:14px 15px}
+ .statvalue{font-size:25px}
+ .grid{gap:11px}
+ .card{padding:14px;border-radius:15px}
+ .sectionhead{align-items:flex-start}
+ .sectionhead h2{font-size:15px}
+ .toolbar{grid-template-columns:1fr}
+ .formgrid{grid-template-columns:minmax(0,1fr)}
+ .formgrid .wide{grid-column:auto}
+ .modalback{padding:8px}
+ .modal{padding:16px;max-height:94dvh}
+ .authbox{padding:17px;max-height:96dvh}
+ .chart{gap:5px;height:155px}
+ .monthbar small{font-size:9px}
+ .donut{width:112px;height:112px}
+ .kpis{gap:12px;justify-content:space-between}
+ .kpi{min-width:0}
+ .tablewrap table{min-width:560px}
+}
+
 </style></head>
 <body>
 <div class="app">
@@ -70,7 +129,7 @@ input,select,textarea{border-radius:10px;border-color:#dfe6df;background:#fffefa
  <div class="sidebottom">Espace patrimonial familial<br>Version 2 · Synchronisation cloud</div>
 </aside>
 <main>
-<header class="top"><div><div class="eyebrow" id="dateLabel">ESPACE FAMILIAL · FINANCES</div><h1 id="pageTitle">Vue d'ensemble</h1></div><div class="actions"><span class="syncpill" id="syncPill"><i class="syncdot" id="syncDot"></i><span id="syncText">Mode local</span></span><button class="btn" id="installApp" hidden>＋ Installer</button><button class="btn" id="openSync">☁ Connexion</button><button class="btn" id="exportTop">↧ Exporter</button><button class="btn primary" id="quickAdd">＋ Ajouter une opération</button></div></header>
+<header class="top"><button class="btn mobile-menu-btn" id="mobileMenuBtn" aria-expanded="false" aria-controls="nav">☰ Menu</button><div><div class="eyebrow" id="dateLabel">ESPACE FAMILIAL · FINANCES</div><h1 id="pageTitle">Vue d'ensemble</h1></div><div class="actions"><span class="syncpill" id="syncPill"><i class="syncdot" id="syncDot"></i><span id="syncText">Mode local</span></span><button class="btn" id="installApp" hidden>＋ Installer</button><button class="btn" id="openSync">☁ Connexion</button><button class="btn" id="exportTop">↧ Exporter</button><button class="btn primary" id="quickAdd">＋ Ajouter une opération</button></div></header>
 
 <section class="page active" id="page-dashboard">
  <div class="notice">Bienvenue dans votre espace patrimonial. Commencez par ajouter vos comptes, revenus, dépenses et biens : aucun patrimoine n’est prérempli.</div>
@@ -156,7 +215,24 @@ const seed={
 };
 let db=load();
 function load(){try{let x=JSON.parse(localStorage.getItem(KEY));return x?{...structuredClone(seed),...x}:structuredClone(seed)}catch{return structuredClone(seed)}}
-function save(){localStorage.setItem(KEY,JSON.stringify(db));renderAll();queueCloudSave()}
+function save(){localStorage.setItem(KEY,JSON.stringify(db));
+const mobileMenuButton=document.getElementById('mobileMenuBtn');
+if(mobileMenuButton){
+ mobileMenuButton.addEventListener('click',()=>{
+  const opened=document.querySelector('aside').classList.toggle('menu-open');
+  mobileMenuButton.setAttribute('aria-expanded',String(opened));
+  mobileMenuButton.textContent=opened?'✕ Fermer':'☰ Menu';
+ });
+ document.getElementById('nav').addEventListener('click',e=>{
+  if(e.target.closest('[data-page]')){
+   document.querySelector('aside').classList.remove('menu-open');
+   mobileMenuButton.setAttribute('aria-expanded','false');
+   mobileMenuButton.textContent='☰ Menu';
+  }
+ });
+}
+
+renderAll();queueCloudSave()}
 function id(){return Date.now()+Math.floor(Math.random()*1000)}
 function field(name,label,type='text',value='',opts=[]){let v=type==='select'?`<select name="${name}">${opts.map(o=>`<option ${o===value?'selected':''}>${esc(o)}</option>`).join('')}</select>`:`<input name="${name}" type="${type}" value="${esc(value)}" ${type==='number'?'step="any"':''}>`;return `<label>${label}${v}</label>`}
 function modal(title,fields,onSave){document.getElementById('modalTitle').textContent=title;document.getElementById('modalFields').innerHTML=fields;document.getElementById('modal').classList.add('show');modalSave=onSave}
