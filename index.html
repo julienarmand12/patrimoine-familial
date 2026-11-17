@@ -143,6 +143,10 @@ input,select,textarea{border-radius:10px;border-color:#dfe6df;background:#fffefa
  aside.menu-open nav#nav .navbtn{display:flex!important;width:100%!important;min-height:48px!important;white-space:normal!important;text-align:left!important;justify-content:flex-start!important;opacity:1!important;visibility:visible!important}
 }
 
+
+/* Les fenêtres et panneaux prioritaires doivent toujours passer devant le menu mobile */
+.modalback{z-index:2000!important}
+.authback{z-index:2100!important}
 </style></head>
 <body>
 <div class="app">
