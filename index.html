@@ -55,7 +55,7 @@ input,select,textarea{border-radius:10px;border-color:#dfe6df;background:#fffefa
 <body>
 <div class="app">
 <aside>
- <div class="brand"><div class="brandmark">⌂</div><div><b>PATRIMOINE</b><small>Finance familiale</small></div></div>
+ <div class="brand"><img class="brandmark" src="icon.svg" alt="Monogramme CJ"><div><b>PATRIMOINE</b><small>Finance familiale</small></div></div>
  <div><div class="navlabel">Pilotage</div><nav id="nav">
  <button class="navbtn active" data-page="dashboard"><span class="ico">▦</span>Vue d'ensemble</button>
  <button class="navbtn" data-page="transactions"><span class="ico">↕</span>Revenus & dépenses</button>
@@ -243,3 +243,4 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 renderAll();
 </script></body></html>
+<style>.brandmark{object-fit:contain;background:transparent;border-radius:0;box-shadow:none;width:42px;height:42px}</style>
