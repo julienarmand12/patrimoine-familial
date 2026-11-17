@@ -147,7 +147,7 @@ input,select,textarea{border-radius:10px;border-color:#dfe6df;background:#fffefa
 <body>
 <div class="app">
 <aside>
- <div class="brand"><img class="brandmark" src="icon.svg?v=6" alt="Monogramme CJ" width="42" height="42"><div><b>PATRIMOINE</b><small>Finance familiale</small></div></div>
+ <div class="brand" id="homeBrand" role="button" tabindex="0" aria-label="Revenir à la vue d’ensemble" title="Vue d’ensemble" style="cursor:pointer"><img class="brandmark" src="icon.svg?v=6" alt="Monogramme CJ" width="42" height="42"><div><b>PATRIMOINE</b><small>Finance familiale</small></div></div>
  <div><div class="navlabel">Pilotage</div><nav id="nav">
  <button class="navbtn active" data-page="dashboard"><span class="ico">▦</span>Vue d'ensemble</button>
  <button class="navbtn" data-page="transactions"><span class="ico">↕</span>Revenus & dépenses</button>
@@ -289,7 +289,11 @@ function renderAnalysis(){let t=totals(),net=db.assets.reduce((s,x)=>s+x.value,0
 function calcSim(){let p=num(document.getElementById('simStart').value),m=num(document.getElementById('simMonthly').value),r=num(document.getElementById('simRate').value)/100/12,n=num(document.getElementById('simYears').value)*12;let v=r? p*Math.pow(1+r,n)+m*(Math.pow(1+r,n)-1)/r:p+m*n;set('simResult',euro(v));set('simDetail',`Versements cumulés : ${euro(p+m*n)} · Gain théorique : ${euro(v-p-m*n)}. Rendement constant hypothétique, hors frais et fiscalité.`)}
 function renderAll(){renderDash();renderTx();renderAssets();renderCredits();renderAccounts();renderContracts();renderAnalysis();set('person1',db.people[0]);set('person2',db.people[1])}
 const titles={dashboard:'Vue d’ensemble',transactions:'Revenus & dépenses',assets:'Immobilier & patrimoine',credits:'Crédits',accounts:'Comptes & placements',contracts:'Assurances & abonnements',analysis:'Analyses & projets',settings:'Paramètres & sauvegarde'};
-function go(p){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+p));document.querySelectorAll('.navbtn').forEach(x=>x.classList.toggle('active',x.dataset.page===p));set('pageTitle',titles[p]);window.scrollTo(0,0)}
+function go(p,options={}){if(!titles[p])return;const current=document.querySelector('.page.active')?.id?.replace('page-','');if(current===p)return;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+p));document.querySelectorAll('.navbtn').forEach(x=>x.classList.toggle('active',x.dataset.page===p));set('pageTitle',titles[p]);if(options.history!==false)history.pushState({page:p},'',location.pathname+location.search+'#'+p);window.scrollTo(0,0)}
+history.replaceState({page:'dashboard'},'',location.pathname+location.search+'#dashboard');
+window.addEventListener('popstate',event=>{const p=event.state?.page||'dashboard';go(p,{history:false})});
+const homeBrand=document.getElementById('homeBrand');
+if(homeBrand){homeBrand.addEventListener('click',()=>go('dashboard'));homeBrand.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();go('dashboard')}})}
 document.getElementById('nav').onclick=e=>{let b=e.target.closest('[data-page]');if(b)go(b.dataset.page)};
 document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
 document.getElementById('quickAdd').onclick=document.getElementById('addTx').onclick=txForm;
