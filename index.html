@@ -375,7 +375,7 @@ function loanForm(assetId,loanId=null){
  });
 }
 function assetLoanButtons(assetId,loans){
- return `<div style="display:grid;gap:6px;min-width:170px">${loans.map(l=>{const q=loanTerms(l);return `<div style="border-top:1px solid var(--line);padding-top:6px"><b>${esc(l.name)}</b><div class="tiny">Emprunt : ${euro(l.borrowed)} · ${num(l.rate).toLocaleString('fr-FR')} % · ${l.duration} ans</div><div class="tiny">Mensualité : <b>${euro(q.payment)}</b></div><div class="tiny">Restant dû : <b>${euro(q.balance)}</b> (${q.paid}/${q.months} échéances)</div><div style="display:flex;gap:5px;margin-top:4px"><button class="btn small" data-edit-loan="${assetId}" data-loan-id="${l.id}">Modifier</button><button class="btn small danger" data-delete-loan="${assetId}" data-loan-id="${l.id}">Supprimer</button></div></div>`}).join('')}${loans.length?'':'<span class="tiny">Aucun crédit associé</span>'}<button class="btn small soft" data-add-loan="${assetId}">＋ Ajouter un crédit</button></div>`;
+ return `<div style="display:grid;gap:6px;min-width:170px">${loans.map(l=>{const q=loanTerms(l);return `<div style="border-top:1px solid var(--line);padding-top:6px"><b>${esc(l.name)}</b><div class="tiny">Emprunt : ${euro(l.borrowed)} · ${num(l.rate).toLocaleString('fr-FR')} % · ${l.duration} ans</div><div class="tiny">Mensualité : <b>${euro(q.payment)}</b></div><div class="tiny">Restant dû : <b>${euro(q.balance)}</b> (${q.paid}/${q.months} échéances)</div><div style="display:flex;gap:5px;margin-top:4px"><button type="button" class="btn small" data-edit-loan="${assetId}" data-loan-id="${l.id}">Modifier</button><button type="button" class="btn small danger" data-delete-loan="${assetId}" data-loan-id="${l.id}">Supprimer</button></div></div>`}).join('')}${loans.length?'':'<span class="tiny">Aucun crédit associé</span>'}<button type="button" class="btn small soft" data-add-loan="${assetId}">＋ Ajouter un crédit</button></div>`;
 }
 function creditForm(creditId=null){const c=creditId?db.credits.find(x=>String(x.id)===String(creditId)):null;const form=field('name','Nom du crédit','text',c?.name||'')+field('startDate','Date de début du crédit','date',c?.startDate||today())+field('borrowed','Montant emprunté (€)','number',c?.borrowed??'0')+field('rate','Taux annuel (%)','number',c?.rate??'0')+field('duration','Durée du crédit (années)','number',c?.duration??'20')+field('owner','Emprunteur','select',c?.owner||'Commun',owners())+field('notes','Notes','text',c?.notes||'');modal(c?'Modifier un crédit':'Ajouter un crédit',form,d=>{const values={...d,borrowed:num(d.borrowed),rate:num(d.rate),duration:num(d.duration)};if(c)Object.assign(c,values);else db.credits.push({id:id(),...values})})}
 function accountForm(){modal('Ajouter un compte ou placement',field('name','Nom du compte / placement')+field('type','Type','select','Compte courant',['Compte courant','Livret A','LDDS','LEP','PEA','Assurance-vie','Compte-titres','PER','Crypto-actifs','Espèces','Autre'])+field('value','Solde / valorisation (€)','number','0')+field('owner','Titulaire','select','Commun',owners())+field('updated','Date de valorisation','date',today())+field('notes','Notes'),d=>db.accounts.push({id:id(),...d,value:num(d.value)}))}
@@ -412,9 +412,19 @@ function renderAssets(){
  bindDelete();
  document.querySelectorAll('[data-edit-asset]').forEach(b=>b.onclick=()=>assetForm(b.dataset.editAsset));
  document.querySelectorAll('[data-rental-history]').forEach(b=>b.onclick=()=>rentalHistoryForm(b.dataset.rentalHistory));
- document.querySelectorAll('[data-add-loan]').forEach(b=>b.onclick=()=>loanForm(b.dataset.addLoan));
- document.querySelectorAll('[data-edit-loan]').forEach(b=>b.onclick=()=>loanForm(b.dataset.editLoan,b.dataset.loanId));
- document.querySelectorAll('[data-delete-loan]').forEach(b=>b.onclick=()=>{const a=db.assets.find(x=>String(x.id)===b.dataset.deleteLoan);if(a&&confirm('Supprimer ce crédit associé ?')){a.loans=(a.loans||[]).filter(l=>String(l.id)!==b.dataset.loanId);save()}});
+ const assetTable=document.getElementById('assetTable');
+ assetTable.onclick=event=>{
+  const add=event.target.closest('[data-add-loan]');
+  const edit=event.target.closest('[data-edit-loan]');
+  const remove=event.target.closest('[data-delete-loan]');
+  if(add){event.preventDefault();loanForm(add.dataset.addLoan);return}
+  if(edit){event.preventDefault();loanForm(edit.dataset.editLoan,edit.dataset.loanId);return}
+  if(remove){
+   event.preventDefault();
+   const a=db.assets.find(x=>String(x.id)===remove.dataset.deleteLoan);
+   if(a&&confirm('Supprimer ce crédit associé ?')){a.loans=(a.loans||[]).filter(l=>String(l.id)!==remove.dataset.loanId);save()}
+  }
+ };
 }
 function statCard(a,b,c=''){return `<div class="card"><div class="statlabel">${a}</div><div class="statvalue">${b}</div><div class="statfoot">${c}</div></div>`}
 function renderCredits(){const cap=db.credits.reduce((s,x)=>s+(x.borrowed!==undefined?loanTerms(x).balance:num(x.capital)),0),m=db.credits.reduce((s,x)=>s+(x.borrowed!==undefined?loanTerms(x).payment:num(x.monthly)),0),interest=db.credits.reduce((s,x)=>s+(x.borrowed!==undefined?loanTerms(x).totalInterest:0),0),remainingInterest=db.credits.reduce((s,x)=>s+(x.borrowed!==undefined?loanTerms(x).remainingInterest:0),0);document.getElementById('creditStats').innerHTML=statCard('Capital restant dû',euro(cap))+statCard('Mensualités cumulées',euro(m))+statCard('Coût total des intérêts',euro(interest))+statCard('Intérêts restant à payer',euro(remainingInterest))+statCard('Nombre de crédits',db.credits.length);document.getElementById('creditTable').innerHTML=table(['Crédit','Date de début','Montant emprunté','Capital restant','Mensualité calculée','Taux','Durée','Coût total des intérêts','Fin estimée','Emprunteur',''],db.credits.map(x=>{const q=x.borrowed!==undefined?loanTerms(x):null;return `<tr><td><b>${esc(x.name)}</b><div class="tiny">${esc(x.notes)}</div></td><td>${esc(x.startDate||'—')}</td><td class="amount">${euro(q?x.borrowed:x.capital)}</td><td class="amount">${euro(q?q.balance:x.capital)}</td><td>${euro(q?q.payment:x.monthly)}</td><td>${num(x.rate).toLocaleString('fr-FR')} %</td><td>${q?x.duration+' ans':'—'}</td><td>${euro(q?q.totalInterest:0)}</td><td>${q&&q.end?q.end.toLocaleDateString('fr-FR'):'—'}</td><td>${esc(x.owner)}</td><td><button class="btn small" data-edit-credit="${x.id}">Modifier</button> ${delButton('credits',x.id)}</td></tr>`}));bindDelete();document.querySelectorAll('[data-edit-credit]').forEach(b=>b.onclick=()=>creditForm(b.dataset.editCredit))}
@@ -471,7 +481,7 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 installButton.addEventListener('click',async()=>{if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installButton.hidden=true;}else{alert('Pour installer l’application : sur iPhone, ouvrez le menu Partager puis « Sur l’écran d’accueil ». Sur Android, ouvrez le menu ⋮ de Chrome puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');}});
 window.addEventListener('appinstalled',()=>{installButton.hidden=true;});
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){installButton.hidden=false;}
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=19',{updateViaCache:'none'}).catch(()=>{}))}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=20',{updateViaCache:'none'}).catch(()=>{}))}
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 
 /* Menu mobile : initialisation unique après le chargement du DOM */
