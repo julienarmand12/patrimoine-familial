@@ -5,7 +5,7 @@
 <meta name="theme-color" content="#101b2b">
 <meta name="description" content="Gestion du patrimoine et des finances familiales">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="icon.svg?v=6" type="image/svg+xml"><link rel="apple-touch-icon" href="icon.svg?v=6">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <title>Patrimoine — Finance familiale</title>
 <style>
@@ -51,11 +51,12 @@ input,select,textarea{border-radius:10px;border-color:#dfe6df;background:#fffefa
 .modal,.authbox{border-radius:22px;background:#fffefa}.modalback{backdrop-filter:blur(5px)}.authback{backdrop-filter:blur(6px)}
 @media(max-width:950px){aside{background:linear-gradient(180deg,#1b383a,#142b30);padding:12px 10px}nav{gap:5px}.navbtn{background:#ffffff08}.navbtn.active{background:#416c61}main{padding-top:17px}}
 @media(max-width:520px){.top{gap:12px}.actions{width:100%;gap:7px}.actions .btn{font-size:12px;padding:9px 10px}.syncpill{font-size:10px}.card{border-radius:15px}.stats .card{min-height:116px}.statvalue{font-size:23px}}
+ .brandmark{display:block;flex:0 0 42px;width:42px;height:42px;object-fit:contain;background:transparent;border:0;border-radius:0;box-shadow:none;padding:0}
 </style></head>
 <body>
 <div class="app">
 <aside>
- <div class="brand"><img class="brandmark" src="icon.svg" alt="Monogramme CJ"><div><b>PATRIMOINE</b><small>Finance familiale</small></div></div>
+ <div class="brand"><img class="brandmark" src="icon.svg?v=6" alt="Monogramme CJ" width="42" height="42"><div><b>PATRIMOINE</b><small>Finance familiale</small></div></div>
  <div><div class="navlabel">Pilotage</div><nav id="nav">
  <button class="navbtn active" data-page="dashboard"><span class="ico">▦</span>Vue d'ensemble</button>
  <button class="navbtn" data-page="transactions"><span class="ico">↕</span>Revenus & dépenses</button>
@@ -243,4 +244,3 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 renderAll();
 </script></body></html>
-<style>.brandmark{object-fit:contain;background:transparent;border-radius:0;box-shadow:none;width:42px;height:42px}</style>
