@@ -237,22 +237,6 @@ const seed={
 let db=load();
 function load(){try{let x=JSON.parse(localStorage.getItem(KEY));return x?{...structuredClone(seed),...x}:structuredClone(seed)}catch{return structuredClone(seed)}}
 function save(){localStorage.setItem(KEY,JSON.stringify(db));
-const mobileMenuButton=document.getElementById('mobileMenuBtn');
-if(mobileMenuButton){
- mobileMenuButton.addEventListener('click',()=>{
-  const opened=document.querySelector('aside').classList.toggle('menu-open');
-  mobileMenuButton.setAttribute('aria-expanded',String(opened));
-  mobileMenuButton.textContent=opened?'✕ Fermer':'☰ Menu';
- });
- document.getElementById('nav').addEventListener('click',e=>{
-  if(e.target.closest('[data-page]')){
-   document.querySelector('aside').classList.remove('menu-open');
-   mobileMenuButton.setAttribute('aria-expanded','false');
-   mobileMenuButton.textContent='☰ Menu';
-  }
- });
-}
-
 renderAll();queueCloudSave()}
 function id(){return Date.now()+Math.floor(Math.random()*1000)}
 function field(name,label,type='text',value='',opts=[]){let v=type==='select'?`<select name="${name}">${opts.map(o=>`<option ${o===value?'selected':''}>${esc(o)}</option>`).join('')}</select>`:`<input name="${name}" type="${type}" value="${esc(value)}" ${type==='number'?'step="any"':''}>`;return `<label>${label}${v}</label>`}
@@ -339,5 +323,26 @@ window.addEventListener('appinstalled',()=>{installButton.hidden=true;});
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){installButton.hidden=false;}
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).catch(()=>{}))}
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
+
+/* Menu mobile : initialisation unique après le chargement du DOM */
+(function setupMobileMenu(){
+ const button=document.getElementById('mobileMenuBtn');
+ const aside=document.querySelector('aside');
+ const nav=document.getElementById('nav');
+ if(!button||!aside||!nav)return;
+ button.addEventListener('click',function(){
+  const opened=aside.classList.toggle('menu-open');
+  button.setAttribute('aria-expanded',opened?'true':'false');
+  button.textContent=opened?'✕ Fermer':'☰ Menu';
+ });
+ nav.addEventListener('click',function(event){
+  if(event.target.closest('[data-page]')){
+   aside.classList.remove('menu-open');
+   button.setAttribute('aria-expanded','false');
+   button.textContent='☰ Menu';
+  }
+ });
+})();
+
 renderAll();
 </script></body></html>
