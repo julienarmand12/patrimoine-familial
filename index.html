@@ -362,16 +362,29 @@ function loanTerms(loan){
  return {payment,balance,months,paid,end:first?new Date(first.getFullYear(),first.getMonth()+months-1,first.getDate()):null,totalPaid,totalInterest,remainingInterest};
 }
 function loanForm(assetId,loanId=null){
- const a=db.assets.find(x=>String(x.id)===String(assetId));if(!a)return;
- a.loans=a.loans||[];const loan=loanId?a.loans.find(x=>String(x.id)===String(loanId)):null;
- const form=field('name','Nom du crédit','text',loan?.name||'Prêt immobilier')
- +field('borrowed','Montant total emprunté (€)','number',loan?.borrowed??'0')
- +field('rate','Taux annuel (%)','number',loan?.rate??'0')
- +field('duration','Durée (années)','number',loan?.duration??'20')
- +field('firstDue','Date de première échéance','date',loan?.firstDue||today());
- modal(loan?'Modifier le crédit associé':'Ajouter un crédit à '+a.name,form,d=>{
+ const assetKey=String(assetId),loanKey=loanId===null?null:String(loanId);
+ const initialAsset=db.assets.find(x=>String(x.id)===assetKey);if(!initialAsset)return;
+ const initialLoans=Array.isArray(initialAsset.loans)?initialAsset.loans:[];
+ const initialLoan=loanKey?initialLoans.find(x=>String(x.id)===loanKey):null;
+ if(loanKey&&!initialLoan){alert('Ce crédit n’existe plus. Actualise la page puis réessaie.');return}
+ const form=field('name','Nom du crédit','text',initialLoan?.name||'Prêt immobilier')
+ +field('borrowed','Montant total emprunté (€)','number',initialLoan?.borrowed??'0')
+ +field('rate','Taux annuel (%)','number',initialLoan?.rate??'0')
+ +field('duration','Durée (années)','number',initialLoan?.duration??'20')
+ +field('firstDue','Date de première échéance','date',initialLoan?.firstDue||today());
+ modal(loanKey?'Modifier le crédit associé':'Ajouter un crédit à '+initialAsset.name,form,d=>{
+  const currentAsset=db.assets.find(x=>String(x.id)===assetKey);
+  if(!currentAsset){alert('Le bien immobilier est introuvable. Le crédit n’a pas été enregistré.');return}
+  if(!Array.isArray(currentAsset.loans))currentAsset.loans=[];
   const values={...d,borrowed:num(d.borrowed),rate:num(d.rate),duration:num(d.duration)};
-  if(loan)Object.assign(loan,values);else a.loans.push({id:id(),...values});
+  if(!values.name.trim()||values.borrowed<=0||values.duration<=0||!values.firstDue){alert('Renseigne le nom, un montant emprunté supérieur à zéro, une durée et la date de première échéance.');return}
+  if(loanKey){
+   const currentLoan=currentAsset.loans.find(x=>String(x.id)===loanKey);
+   if(!currentLoan){alert('Ce crédit a été modifié ou supprimé entre-temps. Le formulaire n’a pas été enregistré.');return}
+   Object.assign(currentLoan,values);
+  }else{
+   currentAsset.loans.push({id:id(),...values});
+  }
  });
 }
 function assetLoanButtons(assetId,loans){
@@ -481,7 +494,7 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 installButton.addEventListener('click',async()=>{if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installButton.hidden=true;}else{alert('Pour installer l’application : sur iPhone, ouvrez le menu Partager puis « Sur l’écran d’accueil ». Sur Android, ouvrez le menu ⋮ de Chrome puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');}});
 window.addEventListener('appinstalled',()=>{installButton.hidden=true;});
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){installButton.hidden=false;}
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=20',{updateViaCache:'none'}).catch(()=>{}))}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=21',{updateViaCache:'none'}).catch(()=>{}))}
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 
 /* Menu mobile : initialisation unique après le chargement du DOM */
