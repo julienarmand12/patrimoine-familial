@@ -541,7 +541,7 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 installButton.addEventListener('click',async()=>{if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installButton.hidden=true;}else{alert('Pour installer l’application : sur iPhone, ouvrez le menu Partager puis « Sur l’écran d’accueil ». Sur Android, ouvrez le menu ⋮ de Chrome puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');}});
 window.addEventListener('appinstalled',()=>{installButton.hidden=true;});
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){installButton.hidden=false;}
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=22',{updateViaCache:'none'}).catch(()=>{}))}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=23',{updateViaCache:'none'}).catch(()=>{}))}
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 
 /* Menu mobile : initialisation unique après le chargement du DOM */
