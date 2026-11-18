@@ -486,27 +486,38 @@ function renderAssets(){
 function statCard(a,b,c=''){return `<div class="card"><div class="statlabel">${a}</div><div class="statvalue">${b}</div><div class="statfoot">${c}</div></div>`}
 function renderCredits(){
  const linked=db.assets.flatMap(a=>(a.loans||[]).map(l=>({credit:l,asset:a})));
- const rows=[
-  ...db.credits.map(x=>({credit:x,asset:null})),
-  ...linked
- ];
+ const rows=[...db.credits.map(x=>({credit:x,asset:null})),...linked];
  const balance=x=>x.borrowed!==undefined?loanTerms(x).balance:num(x.capital);
  const payment=x=>x.borrowed!==undefined?loanTerms(x).payment:num(x.monthly);
+ const groupedNames=['prêt immobilier','prêt immobilier (soute)','prêt travaux (parents)'];
+ const grouped=rows.filter(r=>groupedNames.includes(String(r.credit.name||'').trim().toLocaleLowerCase('fr-FR')));
+ const others=rows.filter(r=>!groupedNames.includes(String(r.credit.name||'').trim().toLocaleLowerCase('fr-FR')));
+ const sum=(list,fn)=>list.reduce((s,r)=>s+fn(r.credit),0);
+ const groupedRow=grouped.length?{
+  name:'Prêts immobiliers',
+  borrowed:sum(grouped,r=>num(r.borrowed!==undefined?r.borrowed:r.capital)),
+  balance:sum(grouped,r=>balance(r)),
+  payment:sum(grouped,r=>payment(r)),
+  details:grouped.map(r=>r.credit.name+(r.asset?' · '+r.asset.name:'')).join(' • '),
+  count:grouped.length
+ }:null;
  const cap=rows.reduce((s,r)=>s+balance(r.credit),0);
  const m=rows.reduce((s,r)=>s+payment(r.credit),0);
  const interest=rows.reduce((s,r)=>s+(r.credit.borrowed!==undefined?loanTerms(r.credit).totalInterest:0),0);
  const remainingInterest=rows.reduce((s,r)=>s+(r.credit.borrowed!==undefined?loanTerms(r.credit).remainingInterest:0),0);
- document.getElementById('creditStats').innerHTML=statCard('Capital restant dû',euro(cap))+statCard('Mensualités cumulées',euro(m))+statCard('Coût total des intérêts',euro(interest))+statCard('Intérêts restant à payer',euro(remainingInterest))+statCard('Nombre de crédits',rows.length);
- document.getElementById('creditTable').innerHTML=table(['Crédit','Date de début','Montant emprunté','Capital restant','Mensualité calculée','Taux','Durée','Coût total des intérêts','Fin estimée','Emprunteur / bien',''],rows.map(({credit:x,asset:a})=>{
-  const q=x.borrowed!==undefined?loanTerms(x):null;
-  const startDate=x.startDate||x.firstDue||'—';
-  const end=q&&q.end?q.end.toLocaleDateString('fr-FR'):'—';
+ const displayRows=[...others.map(r=>({kind:'single',...r})),...(groupedRow?[{kind:'group',credit:groupedRow,asset:null}]:[])];
+ document.getElementById('creditStats').innerHTML=statCard('Capital restant dû',euro(cap))+statCard('Mensualités cumulées',euro(m))+statCard('Coût total des intérêts',euro(interest))+statCard('Intérêts restant à payer',euro(remainingInterest))+statCard('Nombre de crédits',displayRows.length);
+ document.getElementById('creditTable').innerHTML=table(['Crédit','Date de début','Montant emprunté','Capital restant','Mensualité calculée','Taux','Durée','Coût total des intérêts','Fin estimée','Emprunteur / bien',''],displayRows.map(row=>{
+  if(row.kind==='group'){
+   const x=row.credit;
+   return '<tr><td><b>'+esc(x.name)+'</b><div class="tiny">'+x.count+' crédits regroupés : '+esc(x.details)+'</div></td><td>—</td><td class="amount">'+euro(x.borrowed)+'</td><td class="amount">'+euro(x.balance)+'</td><td>'+euro(x.payment)+'</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td></td></tr>';
+  }
+  const x=row.credit,a=row.asset,q=x.borrowed!==undefined?loanTerms(x):null;
+  const startDate=x.startDate||x.firstDue||'—',end=q&&q.end?q.end.toLocaleDateString('fr-FR'):'—';
   const owner=a?(a.owner||'Commun')+' · '+a.name:(x.owner||'—');
   const notes=[x.notes,a?'Crédit associé au bien : '+a.name:''].filter(Boolean).join(' · ');
   const label=a?'<span class="tiny" style="display:inline-block;margin-top:3px;padding:2px 6px;border-radius:10px;background:var(--soft)">Immobilier & patrimoine</span>':'';
-  const actions=a
-   ?'<button class="btn small" data-edit-asset-credit="'+a.id+'" data-loan-id="'+x.id+'">Modifier</button> <button class="btn small danger" data-delete-asset-credit="'+a.id+'" data-loan-id="'+x.id+'">Supprimer</button>'
-   :'<button class="btn small" data-edit-credit="'+x.id+'">Modifier</button> '+delButton('credits',x.id);
+  const actions=a?'<button class="btn small" data-edit-asset-credit="'+a.id+'" data-loan-id="'+x.id+'">Modifier</button> <button class="btn small danger" data-delete-asset-credit="'+a.id+'" data-loan-id="'+x.id+'">Supprimer</button>':'<button class="btn small" data-edit-credit="'+x.id+'">Modifier</button> '+delButton('credits',x.id);
   return '<tr><td><b>'+esc(x.name)+'</b>'+label+(notes?'<div class="tiny">'+esc(notes)+'</div>':'')+'</td><td>'+esc(startDate)+'</td><td class="amount">'+euro(q?x.borrowed:x.capital)+'</td><td class="amount">'+euro(q?q.balance:x.capital)+'</td><td>'+euro(q?q.payment:x.monthly)+'</td><td>'+num(x.rate).toLocaleString('fr-FR')+' %</td><td>'+(q?x.duration+' ans':'—')+'</td><td>'+euro(q?q.totalInterest:0)+'</td><td>'+end+'</td><td>'+esc(owner)+'</td><td>'+actions+'</td></tr>';
  }));
  bindDelete();
@@ -574,7 +585,7 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 installButton.addEventListener('click',async()=>{if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installButton.hidden=true;}else{alert('Pour installer l’application : sur iPhone, ouvrez le menu Partager puis « Sur l’écran d’accueil ». Sur Android, ouvrez le menu ⋮ de Chrome puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');}});
 window.addEventListener('appinstalled',()=>{installButton.hidden=true;});
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){installButton.hidden=false;}
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=41',{updateViaCache:'none'}).catch(()=>{}))}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=42',{updateViaCache:'none'}).catch(()=>{}))}
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 
 /* Menu mobile : initialisation unique après le chargement du DOM */
