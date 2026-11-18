@@ -307,30 +307,32 @@ function rentalHistoryForm(assetId){
  const fields=years.map(year=>{
   const h=history.find(x=>Number(x.year)===year)||{};
   return `<div class="card" style="padding:12px;margin:10px 0;box-shadow:none"><b>${year}</b><div class="formgrid" style="margin-top:9px">
-  ${field('rent_'+year,'Loyers réellement encaissés (€)','number',h.rent??'0')}
+  ${field('rent_'+year,'Loyers réellement perçus sur l’année (€)','number',h.rent??'0')}
   ${field('tax_'+year,'Taxe foncière (€)','number',h.tax??'0')}
-  ${field('charges_'+year,'Charges de copropriété / gestion (€)','number',h.charges??'0')}
-  ${field('insurance_'+year,'Assurance (€)','number',h.insurance??'0')}
-  ${field('maintenance_'+year,'Entretien et travaux (€)','number',h.maintenance??'0')}
-  ${field('other_'+year,'Vacance locative et autres frais (€)','number',h.other??'0')}
+  ${field('insurance_'+year,'Assurance du bien (€)','number',h.insurance??'0')}
+  ${field('maintenance_'+year,'Montant des travaux sur l’année (€)','number',h.maintenance??'0')}
+  ${field('taxes_'+year,'Impôts liés au bien (€)','number',h.taxes??'0')}
+  ${field('charges_'+year,'Autres charges (copropriété, gestion…) (€)','number',h.charges??'0')}
+  ${field('other_'+year,'Autres frais (€)','number',h.other??'0')}
   </div></div>`;
  }).join('');
  modal('Loyers & dépenses — '+a.name,fields||'<p>Aucune année à renseigner.</p>',d=>{
-  a.rentalHistory=years.map(year=>({year,rent:num(d['rent_'+year]),tax:num(d['tax_'+year]),charges:num(d['charges_'+year]),insurance:num(d['insurance_'+year]),maintenance:num(d['maintenance_'+year]),other:num(d['other_'+year])}));
+  a.rentalHistory=years.map(year=>({year,rent:num(d['rent_'+year]),tax:num(d['tax_'+year]),charges:num(d['charges_'+year]),insurance:num(d['insurance_'+year]),maintenance:num(d['maintenance_'+year]),taxes:num(d['taxes_'+year]),other:num(d['other_'+year])}));
  });
 }
 function rentalMetrics(a){
  const history=(a.rentalHistory||[]).filter(h=>Number(h.year)>0).sort((x,y)=>x.year-y.year);
- const cost=num(a.purchasePrice)+num(a.notaryFees)+num(a.works),contribution=num(a.contribution),latest=history[history.length-1];
- const latestNet=latest?num(latest.rent)-num(latest.tax)-num(latest.charges)-num(latest.insurance)-num(latest.maintenance)-num(latest.other):null;
- const gross=latest&&cost>0?num(latest.rent)/cost*100:null;
- const net=latest&&cost>0?latestNet/cost*100:null;
+ const purchasePrice=num(a.purchasePrice),contribution=num(a.contribution),latest=history[history.length-1];
+ const annualNet=h=>num(h.rent)-num(h.tax)-num(h.insurance)-num(h.maintenance)-num(h.taxes)-num(h.charges)-num(h.other);
+ const latestNet=latest?annualNet(latest):null;
+ const gross=latest&&purchasePrice>0?num(latest.rent)/purchasePrice*100:null;
+ const net=latest&&purchasePrice>0?latestNet/purchasePrice*100:null;
  const yieldContribution=latest&&contribution>0?latestNet/contribution*100:null;
  let flows=[];
  if(a.purchaseDate&&contribution>0&&num(a.value)>0){
   flows.push({date:a.purchaseDate,amount:-contribution});
   history.forEach(h=>{
-   const operating=num(h.rent)-num(h.tax)-num(h.charges)-num(h.insurance)-num(h.maintenance)-num(h.other);
+   const operating=annualNet(h);
    const loanOutflow=(a.loans||[]).reduce((sum,l)=>sum+loanPaymentsForYear(l,Number(h.year)),0);
    const amount=operating-loanOutflow;
    const date=Number(h.year)===new Date().getFullYear()?today():h.year+'-12-31';
@@ -469,9 +471,9 @@ function renderAssets(){
  const loanBalance=db.assets.reduce((s,x)=>s+(x.loans||[]).reduce((v,l)=>v+loanTerms(l).balance,0),0);
  const loanMonthly=db.assets.reduce((s,x)=>s+(x.loans||[]).reduce((v,l)=>v+loanTerms(l).payment,0),0);
  document.getElementById('assetStats').innerHTML=statCard('Valeur des actifs',euro(sum))+statCard('Plus-value brute estimée',euro(gain),'Valeur actuelle moins prix et frais d’acquisition')+statCard('Crédits associés · restant dû',euro(loanBalance))+statCard('Mensualités des crédits',euro(loanMonthly))+statCard('Loyers mensuels',euro(rent))+statCard('Nombre de biens',db.assets.length);
- document.getElementById('assetTable').innerHTML=table(['Bien / actif','Type','Valeur actuelle','Coût d’acquisition','Plus-value brute','Loyer mensuel perçu','Rendement brut / net / apport','TRI net sur apport','Historique annuel','Crédits associés','Propriétaire','Notes',''],db.assets.map(x=>{
+ document.getElementById('assetTable').innerHTML=table(['Bien / actif','Type','Valeur actuelle','Coût d’acquisition','Plus-value brute','Loyer mensuel perçu','Rendement brut / net / apport','TRI net sur apport','Crédits associés','Propriétaire','Notes',''],db.assets.map(x=>{
   const cost=num(x.purchasePrice)+num(x.notaryFees)+num(x.works),gain=assetGain(x),m=rentalMetrics(x);
-  return `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.type)}</td><td class="amount">${euro(x.value)}</td><td>${euro(cost)}<div class="tiny">Achat ${euro(x.purchasePrice)} · Notaire ${euro(x.notaryFees)} · Travaux initiaux ${euro(x.works)} · Apport ${euro(x.contribution)}</div></td><td class="amount ${gain>=0?'positive':'negative'}">${euro(gain)}</td><td>${euro(x.rent)}</td><td>${m.gross===null?'—':m.gross.toFixed(2).replace('.',',')+' %'}<div class="tiny">Net : ${m.net===null?'—':m.net.toFixed(2).replace('.',',')+' %'} · Sur apport : ${m.yieldContribution===null?'—':m.yieldContribution.toFixed(2).replace('.',',')+' %'} · Base : ${m.latestYear||'—'}</div></td><td class="amount">${m.tri===null?'À compléter':m.tri.toFixed(2).replace('.',',')+' %'}</td><td><button class="btn small" data-rental-history="${x.id}">Saisir / modifier (${m.historyCount} an(s))</button></td><td>${assetLoanButtons(x.id,x.loans||[])}</td><td>${esc(x.owner)}</td><td>${esc(x.notes)}</td><td>${editAssetButton(x.id)} ${delButton('assets',x.id)}</td></tr>`;
+  return `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.type)}</td><td class="amount">${euro(x.value)}</td><td>${euro(cost)}<div class="tiny">Achat ${euro(x.purchasePrice)} · Notaire ${euro(x.notaryFees)} · Travaux initiaux ${euro(x.works)} · Apport ${euro(x.contribution)}</div></td><td class="amount ${gain>=0?'positive':'negative'}">${euro(gain)}</td><td>${euro(x.rent)}</td><td>${m.gross===null?'—':m.gross.toFixed(2).replace('.',',')+' %'}<div class="tiny">Net : ${m.net===null?'—':m.net.toFixed(2).replace('.',',')+' %'} · Sur apport : ${m.yieldContribution===null?'—':m.yieldContribution.toFixed(2).replace('.',',')+' %'} · Année : ${m.latestYear||'—'}<div class="tiny"><button class="btn small" data-rental-history="${x.id}">Saisir les données annuelles (${m.historyCount} an(s))</button></div></td><td class="amount">${m.tri===null?'À compléter':m.tri.toFixed(2).replace('.',',')+' %'}</td><td>${assetLoanButtons(x.id,x.loans||[])}</td><td>${esc(x.owner)}</td><td>${esc(x.notes)}</td><td>${editAssetButton(x.id)} ${delButton('assets',x.id)}</td></tr>`;
  }));
  bindDelete();
  document.querySelectorAll('[data-edit-asset]').forEach(b=>b.onclick=()=>assetForm(b.dataset.editAsset));
