@@ -1,5 +1,5 @@
-const CACHE='patrimoine-familial-v23-network-first';
-const FILES=['./','./index.html','./manifest.webmanifest','./icon.svg?v=6','./sw.js?v=23'];
+const CACHE='patrimoine-familial-v24-network-first';
+const FILES=['./','./index.html','./manifest.webmanifest','./icon.svg?v=7','./logo.svg?v=1','./sw.js?v=24'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
