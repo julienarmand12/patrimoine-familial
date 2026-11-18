@@ -432,7 +432,17 @@ function renderDistribution(){
  const gradient=[];let cursor=0;
  cats.forEach((x,i)=>{const next=total?cursor+x[1]/total*100:cursor;gradient.push(colors[i]+' '+cursor+'% '+next+'%');cursor=next});
  const donut='conic-gradient('+(gradient.length?gradient.join(','):'#dce2e9 0 100%')+')';
- document.querySelectorAll('#page-distribution .donut').forEach(el=>el.style.background=donut);
+ document.querySelectorAll('#page-distribution .donut').forEach(el=>{
+  el.style.background=donut;
+  let angle=0;
+  el.innerHTML=cats.map((x,i)=>{
+   const pct=total?x[1]/total*100:0,mid=angle+(pct*3.6)/2;angle+=pct*3.6;
+   if(pct<4)return '';
+   const rad=(mid-90)*Math.PI/180,radius=39;
+   const left=50+Math.cos(rad)*radius,top=50+Math.sin(rad)*radius;
+   return '<span style="position:absolute;z-index:2;left:'+left+'%;top:'+top+'%;transform:translate(-50%,-50%);font-size:10px;font-weight:800;color:#fff;text-shadow:0 1px 3px #263238,0 0 3px #263238;white-space:nowrap;pointer-events:none">'+pct.toFixed(1).replace('.',',')+'%</span>';
+  }).join('');
+ });
  const legend=cats.map((x,i)=>'<div><i class="dot" style="background:'+colors[i]+'"></i>'+x[0]+'<br><b>'+euro(x[1])+'</b>'+(total?' <span class="tiny">· '+(x[1]/total*100).toFixed(1).replace('.',',')+' %</span>':'')+'</div>').join('');
  document.getElementById('distributionLegend').innerHTML=legend+'<div style="border-top:1px solid var(--line);padding-top:8px"><b>Total des actifs : '+euro(total)+'</b></div>';
  document.getElementById('distributionAssets').innerHTML=table(['Actif','Catégorie','Valeur'],db.assets.map(a=>'<tr><td><b>'+esc(a.name)+'</b></td><td>'+esc(a.type||'Autre')+'</td><td class="amount">'+euro(a.value)+'</td></tr>'));
