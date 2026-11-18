@@ -4,7 +4,7 @@
   "short_name": "Patrimoine",
   "description": "Votre espace de gestion du patrimoine et des finances familiales",
   "lang": "fr-FR",
-  "start_url": "./?v=29",
+  "start_url": "./?v=30",
   "scope": "./",
   "display": "standalone",
   "display_override": [
@@ -16,10 +16,10 @@
   "theme_color": "#071f25",
   "icons": [
     {
-      "src": "logo-exact.jpg?v=1",
-      "sizes": "128x128",
-      "type": "image/jpeg",
-      "purpose": "any"
+      "src": "home-icon.svg?v=3",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }
