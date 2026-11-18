@@ -178,12 +178,24 @@ input,select,textarea{border-radius:10px;border-color:#dfe6df;background:#fffefa
  <div class="card" style="margin-bottom:16px"><div class="sectionhead"><div><h2>Évolution du patrimoine net</h2><p>Historique des valorisations enregistrées au fil du temps</p></div><span class="tag" id="wealthHistoryCount">Suivi depuis aujourd’hui</span></div><div id="wealthHistoryChart" style="width:100%;min-height:220px"></div><div class="tiny" id="wealthHistoryNote" style="margin-top:8px">Une photographie du patrimoine est conservée automatiquement chaque jour où les données évoluent.</div></div>
  <div class="grid two">
   <div class="card"><div class="sectionhead"><div><h2>Flux financiers</h2><p>Revenus et dépenses récurrents enregistrés</p></div><span class="tag">Mensuel</span></div><div class="kpis"><div class="kpi"><b class="positive" id="dashIncome">0 €</b><span>Revenus</span></div><div class="kpi"><b class="negative" id="dashExpense">0 €</b><span>Dépenses</span></div><div class="kpi"><b id="dashBalance">0 €</b><span>Solde</span></div></div><div class="chart" id="flowChart"></div></div>
-  <div class="card"><div class="sectionhead"><div><h2>Répartition du patrimoine</h2><p>Valeurs enregistrées par catégorie</p></div></div><div class="donutwrap"><div class="donut"></div><div class="legend" id="assetLegend"></div></div></div>
+  <div class="card"><div class="sectionhead"><div><h2>Répartition du patrimoine</h2><p>Valeurs enregistrées par catégorie</p></div><button class="btn small" type="button" data-go="distribution">Voir tout</button></div><div class="donutwrap"><div class="donut"></div><div class="legend" id="assetLegend"></div></div></div>
  </div>
  <div class="grid two" style="margin-top:16px">
   <div class="card"><div class="sectionhead"><div><h2>Dernières opérations</h2><p>Historique familial</p></div><button class="btn small" data-go="transactions">Tout voir</button></div><div id="recentTransactions"></div></div>
   <div class="card"><div class="sectionhead"><div><h2>À surveiller</h2><p>Échéances et informations importantes</p></div><button class="btn small" data-go="contracts">Gérer</button></div><div id="alerts" class="barlist"></div></div>
  </div>
+</section>
+
+<section class="page" id="page-distribution">
+ <div class="card" style="margin-bottom:16px">
+  <div class="sectionhead"><div><h2>Répartition détaillée du patrimoine</h2><p>Valeurs actuelles des actifs, comptes et placements, avant déduction des crédits</p></div><button class="btn small" type="button" data-go="dashboard">← Retour à l’accueil</button></div>
+  <div class="donutwrap" style="margin:18px 0 8px"><div class="donut"></div><div class="legend" id="distributionLegend"></div></div>
+ </div>
+ <div class="grid two">
+  <div class="card"><div class="sectionhead"><div><h2>Détail des biens et autres actifs</h2><p>Valorisation par élément enregistré</p></div></div><div class="tablewrap" id="distributionAssets"></div></div>
+  <div class="card"><div class="sectionhead"><div><h2>Comptes & placements</h2><p>Valorisation par support enregistré</p></div></div><div class="tablewrap" id="distributionAccounts"></div></div>
+ </div>
+ <div class="card" style="margin-top:16px"><div class="sectionhead"><div><h2>Dettes patrimoniales</h2><p>Capitaux restant dus sur les crédits</p></div></div><div class="tablewrap" id="distributionDebts"></div></div>
 </section>
 
 <section class="page" id="page-transactions">
@@ -410,6 +422,26 @@ function renderDash(){
  document.getElementById('recentTransactions').innerHTML=table(['Date','Libellé','Profil','Montant'],recent.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.label)}</td><td>${esc(x.owner)}</td><td class="amount ${x.type==='Revenu'?'positive':'negative'}">${x.type==='Revenu'?'+':'−'}${euro(x.amount)}</td></tr>`));
  let alerts=db.contracts.filter(c=>c.next).slice(0,5);document.getElementById('alerts').innerHTML=alerts.length?alerts.map(c=>`<div class="barrow"><span>${esc(c.name)}</span><span>${esc(c.next)}</span><span>${euro(c.amount)}</span></div>`).join(''):'<div class="tiny">Ajoute les dates d’échéance de vos assurances et abonnements pour les suivre ici.</div>';
 }
+function renderDistribution(){
+ const cats=[
+  ['Immobilier',db.assets.filter(a=>String(a.type||'').includes('Immobilier')||String(a.type||'').includes('Résidence')).reduce((s,a)=>s+num(a.value),0)],
+  ['Comptes & placements',db.accounts.reduce((s,a)=>s+num(a.value),0)],
+  ['Autres actifs',db.assets.filter(a=>!String(a.type||'').includes('Immobilier')&&!String(a.type||'').includes('Résidence')).reduce((s,a)=>s+num(a.value),0)]
+ ];
+ const colors=['#16866b','#6687bd','#d8b66f'],total=cats.reduce((s,x)=>s+x[1],0);
+ const gradient=[];let cursor=0;
+ cats.forEach((x,i)=>{const next=total?cursor+x[1]/total*100:cursor;gradient.push(colors[i]+' '+cursor+'% '+next+'%');cursor=next});
+ const donut='conic-gradient('+(gradient.length?gradient.join(','):'#dce2e9 0 100%')+')';
+ document.querySelectorAll('#page-distribution .donut').forEach(el=>el.style.background=donut);
+ const legend=cats.map((x,i)=>'<div><i class="dot" style="background:'+colors[i]+'"></i>'+x[0]+'<br><b>'+euro(x[1])+'</b>'+(total?' <span class="tiny">· '+(x[1]/total*100).toFixed(1).replace('.',',')+' %</span>':'')+'</div>').join('');
+ document.getElementById('distributionLegend').innerHTML=legend+'<div style="border-top:1px solid var(--line);padding-top:8px"><b>Total des actifs : '+euro(total)+'</b></div>';
+ document.getElementById('distributionAssets').innerHTML=table(['Actif','Catégorie','Valeur'],db.assets.map(a=>'<tr><td><b>'+esc(a.name)+'</b></td><td>'+esc(a.type||'Autre')+'</td><td class="amount">'+euro(a.value)+'</td></tr>'));
+ document.getElementById('distributionAccounts').innerHTML=table(['Support','Type','Titulaire','Valeur'],db.accounts.map(a=>'<tr><td><b>'+esc(a.name)+'</b></td><td>'+esc(a.type||'—')+'</td><td>'+esc(a.owner||'—')+'</td><td class="amount">'+euro(a.value)+'</td></tr>'));
+ const debts=[];
+ db.credits.forEach(x=>debts.push({name:x.name,kind:'Crédit',balance:x.borrowed!==undefined?loanTerms(x).balance:num(x.capital)}));
+ db.assets.forEach(a=>(a.loans||[]).forEach(x=>debts.push({name:x.name+' · '+a.name,kind:'Crédit immobilier associé',balance:loanTerms(x).balance})));
+ document.getElementById('distributionDebts').innerHTML=table(['Emprunt','Nature','Capital restant dû'],debts.map(x=>'<tr><td><b>'+esc(x.name)+'</b></td><td>'+x.kind+'</td><td class="amount">'+euro(x.balance)+'</td></tr>'));
+}
 function set(id,v){document.getElementById(id).textContent=v}
 function renderTx(){let q=(document.getElementById('txSearch').value||'').toLowerCase(),ty=document.getElementById('txType').value,ow=document.getElementById('txOwner').value;let xs=db.transactions.filter(x=>(!ty||x.type===ty)&&(!ow||x.owner===ow)&&(`${x.label} ${x.category} ${x.notes}`.toLowerCase().includes(q))).sort((a,b)=>(b.date||'').localeCompare(a.date||''));set('txCount',xs.length+' opération(s)');document.getElementById('txTable').innerHTML=table(['Date','Libellé','Catégorie','Profil','Récurrence','Montant',''],xs.map(x=>`<tr><td>${esc(x.date)}</td><td><b>${esc(x.label)}</b></td><td>${esc(x.category)}</td><td>${esc(x.owner)}</td><td>${esc(x.recurring)}</td><td class="amount ${x.type==='Revenu'?'positive':'negative'}">${x.type==='Revenu'?'+':'−'}${euro(x.amount)}</td><td>${delButton('transactions',x.id)}</td></tr>`));bindDelete()}
 function renderAssets(){
@@ -445,8 +477,8 @@ function renderAccounts(){let sum=db.accounts.reduce((s,x)=>s+x.value,0);documen
 function renderContracts(){let f=document.getElementById('contractFilter').value,xs=db.contracts.filter(x=>!f||x.kind===f),m=db.contracts.reduce((s,x)=>s+monthlyAmount(x),0);document.getElementById('contractStats').innerHTML=statCard('Coût mensuel estimé',euro(m))+statCard('Coût annuel estimé',euro(m*12))+statCard('Contrats suivis',db.contracts.length);document.getElementById('contractTable').innerHTML=table(['Nature','Contrat','Catégorie','Coût','Périodicité','Titulaire','Échéance',''],xs.map(x=>`<tr><td><span class="tag">${esc(x.kind)}</span></td><td><b>${esc(x.name)}</b></td><td>${esc(x.category)}</td><td class="amount">${euro(x.amount)}</td><td>${esc(x.period)}</td><td>${esc(x.owner)}</td><td>${esc(x.next||'—')}</td><td>${delButton('contracts',x.id)}</td></tr>`));bindDelete()}
 function renderAnalysis(){let t=totals(),net=db.assets.reduce((s,x)=>s+x.value,0)+db.accounts.reduce((s,x)=>s+x.value,0)-db.credits.reduce((s,x)=>s+(x.borrowed!==undefined?loanTerms(x).balance:num(x.capital)),0)-db.assets.reduce((s,a)=>s+(a.loans||[]).reduce((v,l)=>v+loanTerms(l).balance,0),0);document.getElementById('analysisStats').innerHTML=statCard('Patrimoine net estimé',euro(net))+statCard('Revenus mensuels',euro(t.inc))+statCard('Dépenses mensuelles',euro(t.out))+statCard('Taux d’épargne théorique',t.inc?((t.inc-t.out)/t.inc*100).toFixed(1).replace('.',',')+' %':'—')+statCard('Coût total des intérêts des crédits',euro(db.credits.reduce((s,x)=>s+(x.borrowed!==undefined?loanTerms(x).totalInterest:0),0)))+statCard('Intérêts restant à payer',euro(db.credits.reduce((s,x)=>s+(x.borrowed!==undefined?loanTerms(x).remainingInterest:0),0)));let groups={};db.transactions.filter(x=>x.type==='Dépense'&&x.recurring==='Oui').forEach(x=>groups[x.category]=(groups[x.category]||0)+num(x.amount));db.contracts.forEach(x=>groups[x.category]=(groups[x.category]||0)+monthlyAmount(x));db.credits.forEach(x=>groups['Crédits']=(groups['Crédits']||0)+(x.borrowed!==undefined?loanTerms(x).payment:num(x.monthly)));db.assets.forEach(a=>(a.loans||[]).forEach(l=>groups['Crédits immobiliers']=(groups['Crédits immobiliers']||0)+loanTerms(l).payment));let max=Math.max(...Object.values(groups),1);document.getElementById('categoryBars').innerHTML=Object.entries(groups).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="barrow"><span>${esc(k)}</span><div class="track"><div class="fill red" style="width:${v/max*100}%"></div></div><b>${euro(v)}</b></div>`).join('')||'<div class="tiny">Ajoute des dépenses récurrentes pour obtenir une analyse par catégorie.</div>';calcSim();document.getElementById('goalList').innerHTML=db.goals.length?db.goals.map(g=>`<div style="margin:12px 0"><div class="sectionhead"><b>${esc(g.name)}</b><span>${euro(g.current)} / ${euro(g.target)}</span></div><div class="track"><div class="fill" style="width:${Math.min(100,g.target?g.current/g.target*100:0)}%"></div></div><div class="tiny" style="margin-top:5px">${g.date?'Objectif : '+esc(g.date):''} ${delButton('goals',g.id)}</div></div>`).join(''):'<div class="empty">Aucun objectif défini.</div>';bindDelete()}
 function calcSim(){let p=num(document.getElementById('simStart').value),m=num(document.getElementById('simMonthly').value),r=num(document.getElementById('simRate').value)/100/12,n=num(document.getElementById('simYears').value)*12;let v=r? p*Math.pow(1+r,n)+m*(Math.pow(1+r,n)-1)/r:p+m*n;set('simResult',euro(v));set('simDetail',`Versements cumulés : ${euro(p+m*n)} · Gain théorique : ${euro(v-p-m*n)}. Rendement constant hypothétique, hors frais et fiscalité.`)}
-function renderAll(){renderDash();renderTx();renderAssets();renderCredits();renderAccounts();renderContracts();renderAnalysis();set('person1',db.people[0]);set('person2',db.people[1])}
-const titles={dashboard:'Vue d’ensemble',transactions:'Revenus & dépenses',assets:'Immobilier & patrimoine',credits:'Crédits',accounts:'Comptes & placements',contracts:'Assurances & abonnements',analysis:'Analyses & projets',settings:'Paramètres & sauvegarde'};
+function renderAll(){renderDash();renderDistribution();renderTx();renderAssets();renderCredits();renderAccounts();renderContracts();renderAnalysis();set('person1',db.people[0]);set('person2',db.people[1])}
+const titles={dashboard:'Vue d’ensemble',distribution:'Répartition du patrimoine',transactions:'Revenus & dépenses',assets:'Immobilier & patrimoine',credits:'Crédits',accounts:'Comptes & placements',contracts:'Assurances & abonnements',analysis:'Analyses & projets',settings:'Paramètres & sauvegarde'};
 function go(p,options={}){if(!titles[p])return;const current=document.querySelector('.page.active')?.id?.replace('page-','');if(current===p)return;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+p));document.querySelectorAll('.navbtn').forEach(x=>x.classList.toggle('active',x.dataset.page===p));set('pageTitle',titles[p]);if(options.history!==false)history.pushState({page:p},'',location.pathname+location.search+'#'+p);window.scrollTo(0,0)}
 history.replaceState({page:'dashboard'},'',location.pathname+location.search+'#dashboard');
 window.addEventListener('popstate',event=>{const p=event.state?.page||'dashboard';go(p,{history:false})});
@@ -494,7 +526,7 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 installButton.addEventListener('click',async()=>{if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installButton.hidden=true;}else{alert('Pour installer l’application : sur iPhone, ouvrez le menu Partager puis « Sur l’écran d’accueil ». Sur Android, ouvrez le menu ⋮ de Chrome puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');}});
 window.addEventListener('appinstalled',()=>{installButton.hidden=true;});
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){installButton.hidden=false;}
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=21',{updateViaCache:'none'}).catch(()=>{}))}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=22',{updateViaCache:'none'}).catch(()=>{}))}
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 
 /* Menu mobile : initialisation unique après le chargement du DOM */
