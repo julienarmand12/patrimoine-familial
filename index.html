@@ -485,49 +485,55 @@ function renderAssets(){
 }
 function statCard(a,b,c=''){return `<div class="card"><div class="statlabel">${a}</div><div class="statvalue">${b}</div><div class="statfoot">${c}</div></div>`}
 function renderCredits(){
- const linked=db.assets.flatMap(a=>(a.loans||[]).map(l=>({credit:l,asset:a})));
- const rows=[...db.credits.map(x=>({credit:x,asset:null})),...linked];
+ const linked=db.assets.flatMap(asset=>(asset.loans||[]).map(credit=>({credit,asset})));
+ const rows=[...db.credits.map(credit=>({credit,asset:null})),...linked];
+ const normalize=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr-FR').replace(/\s+/g,' ').trim().replace(/\s*\(\s*/g,' (').replace(/\s*\)/g,')');
+ const classify=name=>{
+  const n=normalize(name),suffix='(?:\\s+(?:residence principale|appartement 1|appartement 2))?';
+  if(new RegExp('^pret immobilier\\s*\\(soulte\\)'+suffix+'$').test(n))return 'pret immobilier (soulte)';
+  if(new RegExp('^pret immobilier'+suffix+'$').test(n))return 'pret immobilier';
+  if(new RegExp('^pret travaux\\s*\\(parents\\)'+suffix+'$').test(n))return 'pret travaux (parents)';
+  return null;
+ };
+ const groups=[{key:'pret immobilier',name:'Prêt immobilier'},{key:'pret immobilier (soulte)',name:'Prêt immobilier (soulte)'},{key:'pret travaux (parents)',name:'Prêt travaux (parents)'}];
+ const grouped=Object.fromEntries(groups.map(g=>[g.key,rows.filter(r=>classify(r.credit.name)===g.key)]));
+ const others=rows.filter(r=>!classify(r.credit.name));
  const balance=x=>x.borrowed!==undefined?loanTerms(x).balance:num(x.capital);
  const payment=x=>x.borrowed!==undefined?loanTerms(x).payment:num(x.monthly);
- const groupedNames=['prêt immobilier','prêt immobilier (soute)','prêt travaux (parents)'];
- const grouped=rows.filter(r=>groupedNames.includes(String(r.credit.name||'').trim().toLocaleLowerCase('fr-FR')));
- const others=rows.filter(r=>!groupedNames.includes(String(r.credit.name||'').trim().toLocaleLowerCase('fr-FR')));
- const sum=(list,fn)=>list.reduce((s,r)=>s+fn(r.credit),0);
- const groupedRow=grouped.length?{
-  name:'Prêts immobiliers',
-  borrowed:sum(grouped,r=>num(r.borrowed!==undefined?r.borrowed:r.capital)),
-  balance:sum(grouped,r=>balance(r)),
-  payment:sum(grouped,r=>payment(r)),
-  details:grouped.map(r=>r.credit.name+(r.asset?' · '+r.asset.name:'')).join(' • '),
-  count:grouped.length
- }:null;
- const cap=rows.reduce((s,r)=>s+balance(r.credit),0);
- const m=rows.reduce((s,r)=>s+payment(r.credit),0);
- const interest=rows.reduce((s,r)=>s+(r.credit.borrowed!==undefined?loanTerms(r.credit).totalInterest:0),0);
- const remainingInterest=rows.reduce((s,r)=>s+(r.credit.borrowed!==undefined?loanTerms(r.credit).remainingInterest:0),0);
- const displayRows=[...others.map(r=>({kind:'single',...r})),...(groupedRow?[{kind:'group',credit:groupedRow,asset:null}]:[])];
+ const dateValue=x=>x.startDate||x.firstDue||'';
+ const fmtDate=value=>value?new Date(value+'T12:00:00').toLocaleDateString('fr-FR'):'—';
+ const sum=(list,fn)=>list.reduce((total,r)=>total+fn(r.credit),0);
+ const aggregate=groups.map(g=>{
+  const items=grouped[g.key];if(!items.length)return null;
+  const borrowed=sum(items,x=>num(x.borrowed!==undefined?x.borrowed:x.capital)),remaining=sum(items,x=>balance(x)),monthly=sum(items,x=>payment(x));
+  const weightedRate=borrowed?sum(items,x=>num(x.borrowed!==undefined?x.borrowed:x.capital)*num(x.rate))/borrowed:0;
+  const starts=items.map(r=>dateValue(r.credit)).filter(Boolean).sort();
+  const ends=items.map(r=>r.credit.borrowed!==undefined?loanTerms(r.credit).end:null).filter(Boolean).map(d=>d.toISOString().slice(0,10)).sort();
+  const totalInterest=sum(items,x=>x.borrowed!==undefined?loanTerms(x).totalInterest:0),remainingInterest=sum(items,x=>x.borrowed!==undefined?loanTerms(x).remainingInterest:0);
+  const durationYears=sum(items,x=>num(x.borrowed!==undefined?x.borrowed:x.capital)*num(x.duration))/(borrowed||1);
+  const details=items.map(r=>{
+   const x=r.credit,q=x.borrowed!==undefined?loanTerms(x):null,start=dateValue(x),end=q?.end?q.end.toISOString().slice(0,10):'';
+   const owner=r.asset?(r.asset.owner||'Commun')+' · '+r.asset.name:(x.owner||'—'),principal=num(x.borrowed!==undefined?x.borrowed:x.capital);
+   return '<div style="padding:10px 0;border-top:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>'+esc(r.asset?.name||x.name)+'</b><span class="tiny">'+esc(owner)+'</span></div><div class="tiny" style="margin-top:5px">Emprunté : <b>'+euro(principal)+'</b> · Restant dû : <b>'+euro(balance(x))+'</b> · Mensualité : '+euro(payment(x))+'</div><div class="tiny">Taux : '+num(x.rate).toLocaleString('fr-FR')+' % · Début : '+fmtDate(start)+' · Fin : '+(q?.end?fmtDate(end):'—')+' · Durée : '+(x.duration?num(x.duration)+' ans':'—')+'</div>'+(x.notes?'<div class="tiny">'+esc(x.notes)+'</div>':'')+'</div>';
+  }).join('');
+  return {kind:'group',name:g.name,count:items.length,borrowed,remaining,monthly,weightedRate,start:starts[0]||'',end:ends.at(-1)||'',totalInterest,remainingInterest,durationYears,details};
+ });
+ const cap=rows.reduce((total,r)=>total+balance(r.credit),0),m=rows.reduce((total,r)=>total+payment(r.credit),0);
+ const interest=rows.reduce((total,r)=>total+(r.credit.borrowed!==undefined?loanTerms(r.credit).totalInterest:0),0),remainingInterest=rows.reduce((total,r)=>total+(r.credit.borrowed!==undefined?loanTerms(r.credit).remainingInterest:0),0);
+ const displayRows=[...others.map(r=>({kind:'single',...r})),...aggregate.filter(Boolean)];
  document.getElementById('creditStats').innerHTML=statCard('Capital restant dû',euro(cap))+statCard('Mensualités cumulées',euro(m))+statCard('Coût total des intérêts',euro(interest))+statCard('Intérêts restant à payer',euro(remainingInterest))+statCard('Nombre de crédits',displayRows.length);
- document.getElementById('creditTable').innerHTML=table(['Crédit','Date de début','Montant emprunté','Capital restant','Mensualité calculée','Taux','Durée','Coût total des intérêts','Fin estimée','Emprunteur / bien',''],displayRows.map(row=>{
-  if(row.kind==='group'){
-   const x=row.credit;
-   return '<tr><td><b>'+esc(x.name)+'</b><div class="tiny">'+x.count+' crédits regroupés : '+esc(x.details)+'</div></td><td>—</td><td class="amount">'+euro(x.borrowed)+'</td><td class="amount">'+euro(x.balance)+'</td><td>'+euro(x.payment)+'</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td></td></tr>';
-  }
-  const x=row.credit,a=row.asset,q=x.borrowed!==undefined?loanTerms(x):null;
-  const startDate=x.startDate||x.firstDue||'—',end=q&&q.end?q.end.toLocaleDateString('fr-FR'):'—';
-  const owner=a?(a.owner||'Commun')+' · '+a.name:(x.owner||'—');
-  const notes=[x.notes,a?'Crédit associé au bien : '+a.name:''].filter(Boolean).join(' · ');
+ document.getElementById('creditTable').innerHTML=table(['Crédit','Date de début','Montant emprunté','Capital restant','Mensualité calculée','Taux moyen','Durée moyenne','Coût total des intérêts','Fin estimée','Emprunteur / bien',''],displayRows.map(row=>{
+  if(row.kind==='group'){const x=row;return '<tr><td><b>'+esc(x.name)+'</b><div class="tiny">'+x.count+' prêts regroupés</div><details style="margin-top:7px"><summary class="tiny" style="cursor:pointer;color:var(--green);font-weight:700">Voir la répartition par bien</summary><div style="min-width:260px;padding:4px 0">'+x.details+'</div></details></td><td>'+fmtDate(x.start)+'</td><td class="amount">'+euro(x.borrowed)+'</td><td class="amount">'+euro(x.remaining)+'</td><td>'+euro(x.monthly)+'</td><td>'+x.weightedRate.toLocaleString('fr-FR',{maximumFractionDigits:3})+' %</td><td>'+x.durationYears.toLocaleString('fr-FR',{maximumFractionDigits:1})+' ans</td><td>'+euro(x.totalInterest)+'</td><td>'+fmtDate(x.end)+'</td><td>'+x.count+' biens / prêts</td><td></td></tr>'}
+  const x=row.credit,a=row.asset,q=x.borrowed!==undefined?loanTerms(x):null,startDate=dateValue(x)||'—',end=q&&q.end?q.end.toLocaleDateString('fr-FR'):'—';
+  const owner=a?(a.owner||'Commun')+' · '+a.name:(x.owner||'—'),notes=[x.notes,a?'Crédit associé au bien : '+a.name:''].filter(Boolean).join(' · ');
   const label=a?'<span class="tiny" style="display:inline-block;margin-top:3px;padding:2px 6px;border-radius:10px;background:var(--soft)">Immobilier & patrimoine</span>':'';
   const actions=a?'<button class="btn small" data-edit-asset-credit="'+a.id+'" data-loan-id="'+x.id+'">Modifier</button> <button class="btn small danger" data-delete-asset-credit="'+a.id+'" data-loan-id="'+x.id+'">Supprimer</button>':'<button class="btn small" data-edit-credit="'+x.id+'">Modifier</button> '+delButton('credits',x.id);
   return '<tr><td><b>'+esc(x.name)+'</b>'+label+(notes?'<div class="tiny">'+esc(notes)+'</div>':'')+'</td><td>'+esc(startDate)+'</td><td class="amount">'+euro(q?x.borrowed:x.capital)+'</td><td class="amount">'+euro(q?q.balance:x.capital)+'</td><td>'+euro(q?q.payment:x.monthly)+'</td><td>'+num(x.rate).toLocaleString('fr-FR')+' %</td><td>'+(q?x.duration+' ans':'—')+'</td><td>'+euro(q?q.totalInterest:0)+'</td><td>'+end+'</td><td>'+esc(owner)+'</td><td>'+actions+'</td></tr>';
  }));
  bindDelete();
- document.querySelectorAll('[data-edit-credit]').forEach(b=>b.onclick=()=>creditForm(b.dataset.editCredit));
- document.querySelectorAll('[data-edit-asset-credit]').forEach(b=>b.onclick=()=>loanForm(b.dataset.editAssetCredit,b.dataset.loanId));
- document.querySelectorAll('[data-delete-asset-credit]').forEach(b=>b.onclick=()=>{
-  if(!confirm('Supprimer ce crédit associé au bien immobilier ?'))return;
-  const a=db.assets.find(x=>String(x.id)===String(b.dataset.deleteAssetCredit));
-  if(a){a.loans=(a.loans||[]).filter(l=>String(l.id)!==String(b.dataset.loanId));save()}
- });
+ document.querySelectorAll('[data-edit-credit]').forEach(button=>button.onclick=()=>creditForm(button.dataset.editCredit));
+ document.querySelectorAll('[data-edit-asset-credit]').forEach(button=>button.onclick=()=>loanForm(button.dataset.editAssetCredit,button.dataset.loanId));
+ document.querySelectorAll('[data-delete-asset-credit]').forEach(button=>button.onclick=()=>{if(!confirm('Supprimer ce crédit associé au bien immobilier ?'))return;const asset=db.assets.find(x=>String(x.id)===String(button.dataset.deleteAssetCredit));if(asset){asset.loans=(asset.loans||[]).filter(l=>String(l.id)!==String(button.dataset.loanId));save()}});
 }
 function accountSparkline(account){const rows=(account.history||[]).filter(p=>p.date&&Number.isFinite(Number(p.value))).slice().sort((a,b)=>a.date.localeCompare(b.date));if(!rows.length)return '<span class="tiny">Historique à créer</span>';if(rows.length===1)return '<svg viewBox="0 0 120 30" width="120" height="30" aria-label="Un relevé enregistré"><path d="M3 24 L117 24" stroke="#dfe8e1" stroke-width="2"/><circle cx="60" cy="15" r="3.5" fill="#347b65"/></svg>';const vals=rows.map(p=>num(p.value)),lo=Math.min(...vals),hi=Math.max(...vals),span=hi-lo||Math.max(Math.abs(hi)*.08,1),pts=rows.map((p,i)=>(3+i*114/(rows.length-1))+','+(25-(num(p.value)-lo)/span*20)).join(' ');return '<svg viewBox="0 0 120 30" width="120" height="30" role="img" aria-label="Historique de valorisation"><polyline points="'+pts+'" fill="none" stroke="#347b65" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
 function recordAccountValue(account,date,value){if(!Array.isArray(account.history))account.history=[];const existing=account.history.find(p=>p.date===date);if(existing)existing.value=value;else account.history.push({date,value});account.history.sort((a,b)=>a.date.localeCompare(b.date));const latest=account.history[account.history.length-1];account.value=num(latest.value);account.updated=latest.date}
@@ -539,8 +545,11 @@ function calcSim(){let p=num(document.getElementById('simStart').value),m=num(do
 function renderAll(){renderDash();renderDistribution();renderTx();renderAssets();renderCredits();renderAccounts();renderContracts();renderAnalysis();set('person1',db.people[0]);set('person2',db.people[1])}
 const titles={dashboard:'Vue d’ensemble',distribution:'Répartition du patrimoine',transactions:'Revenus & dépenses',assets:'Immobilier & patrimoine',credits:'Crédits',accounts:'Comptes & placements',contracts:'Assurances & abonnements',analysis:'Analyses & projets',settings:'Paramètres & sauvegarde'};
 function go(p,options={}){if(!titles[p])return;const current=document.querySelector('.page.active')?.id?.replace('page-','');if(current===p)return;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+p));document.querySelectorAll('.navbtn').forEach(x=>x.classList.toggle('active',x.dataset.page===p));set('pageTitle',titles[p]);if(options.history!==false)history.pushState({page:p},'',location.pathname+location.search+'#'+p);window.scrollTo(0,0)}
-history.replaceState({page:'dashboard'},'',location.pathname+location.search+'#dashboard');
-window.addEventListener('popstate',event=>{const p=event.state?.page||'dashboard';go(p,{history:false})});
+const initialPage=location.hash.slice(1);
+const restoredPage=titles[initialPage]?initialPage:'dashboard';
+history.replaceState({page:restoredPage},'',location.pathname+location.search+'#'+restoredPage);
+if(restoredPage!=='dashboard')go(restoredPage,{history:false});
+window.addEventListener('popstate',event=>{const hashPage=location.hash.slice(1);const p=titles[event.state?.page]?event.state.page:(titles[hashPage]?hashPage:'dashboard');go(p,{history:false})});
 const homeBrand=document.getElementById('homeBrand');
 if(homeBrand){homeBrand.addEventListener('click',()=>go('dashboard'));homeBrand.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();go('dashboard')}})}
 document.getElementById('nav').onclick=e=>{let b=e.target.closest('[data-page]');if(b)go(b.dataset.page)};
@@ -585,7 +594,7 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 installButton.addEventListener('click',async()=>{if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installButton.hidden=true;}else{alert('Pour installer l’application : sur iPhone, ouvrez le menu Partager puis « Sur l’écran d’accueil ». Sur Android, ouvrez le menu ⋮ de Chrome puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');}});
 window.addEventListener('appinstalled',()=>{installButton.hidden=true;});
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){installButton.hidden=false;}
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=42',{updateViaCache:'none'}).catch(()=>{}))}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=43',{updateViaCache:'none'}).catch(()=>{}))}
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 
 /* Menu mobile : initialisation unique après le chargement du DOM */
