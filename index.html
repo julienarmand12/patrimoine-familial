@@ -316,8 +316,16 @@ function rentalHistoryForm(assetId){
   ${field('other_'+year,'Autres frais (€)','number',h.other??'0')}
   </div></div>`;
  }).join('');
+ const targetAssetId=String(a.id);
  modal('Loyers & dépenses — '+a.name,fields||'<p>Aucune année à renseigner.</p>',d=>{
-  a.rentalHistory=years.map(year=>({year,rent:num(d['rent_'+year]),tax:num(d['tax_'+year]),charges:num(d['charges_'+year]),insurance:num(d['insurance_'+year]),maintenance:num(d['maintenance_'+year]),taxes:num(d['taxes_'+year]),other:num(d['other_'+year])}));
+  // Rechercher le bien dans la base courante au moment de l'enregistrement :
+  // la synchronisation familiale peut remplacer l'objet db pendant que la fenêtre est ouverte.
+  const target=db.assets.find(x=>String(x.id)===targetAssetId);
+  if(!target){alert('Ce bien n’existe plus dans les données actuelles. Les valeurs n’ont pas été enregistrées.');return}
+  const existing=Array.isArray(target.rentalHistory)?target.rentalHistory:[];
+  const updated=new Map(existing.map(h=>[Number(h.year),h]));
+  years.forEach(year=>updated.set(year,{...(updated.get(year)||{}),year,rent:num(d['rent_'+year]),tax:num(d['tax_'+year]),charges:num(d['charges_'+year]),insurance:num(d['insurance_'+year]),maintenance:num(d['maintenance_'+year]),taxes:num(d['taxes_'+year]),other:num(d['other_'+year])}));
+  target.rentalHistory=[...updated.values()].sort((x,y)=>Number(x.year)-Number(y.year));
  });
 }
 function rentalMetrics(a){
