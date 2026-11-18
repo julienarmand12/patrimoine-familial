@@ -1,5 +1,5 @@
-const CACHE='patrimoine-familial-v37';
-const FILES=['./','./index.html','./manifest.webmanifest','./patrimoine-app-icon.svg?v=37','./patrimoine-logo.jpg?v=2','./home-icon.svg?v=4'];
+const CACHE='patrimoine-familial-v38';
+const FILES=['./','./index.html','./manifest.webmanifest','./patrimoine-app-icon.svg?v=38'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(CACHE);await Promise.allSettled(FILES.map(path=>cache.add(path)));await self.skipWaiting();})()));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)));await self.clients.claim();})()));
 self.addEventListener('fetch',event=>{const req=event.request,url=new URL(req.url);if(req.method!=='GET'||url.origin!==location.origin)return;if(req.mode==='navigate'){event.respondWith(fetch(req).then(res=>{if(res.ok)caches.open(CACHE).then(cache=>cache.put('./index.html',res.clone()));return res;}).catch(()=>caches.match('./index.html').then(hit=>hit||caches.match('./'))));return;}event.respondWith(caches.match(req).then(hit=>hit||fetch(req).then(res=>{if(res.ok)caches.open(CACHE).then(cache=>cache.put(req,res.clone()));return res;})));});
