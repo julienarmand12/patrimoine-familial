@@ -1,1 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#031b29"/><stop offset="1" stop-color="#0b3540"/></linearGradient></defs><rect width="900" height="300" rx="28" fill="url(#bg)"/><image href="icon.svg?v=10" x="35" y="20" width="260" height="260"/><text x="330" y="174" font-family="Arial,sans-serif" font-size="68" font-weight="700" letter-spacing="5" fill="#f7f1e5">PATRIMOINE</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 180">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#061c2a"/><stop offset="1" stop-color="#0a303a"/></linearGradient></defs>
+<rect width="760" height="180" rx="18" fill="url(#bg)"/>
+<image href="icon.svg?v=11" x="14" y="8" width="164" height="164"/>
+<text x="204" y="108" font-family="Arial,sans-serif" font-size="49" font-weight="700" letter-spacing="3.5" fill="#f7f2e9">PATRIMOINE</text>
+</svg>
