@@ -4,7 +4,7 @@
   "short_name": "Patrimoine",
   "description": "Gestion du patrimoine et des finances familiales",
   "lang": "fr-FR",
-  "start_url": "./?v=47",
+  "start_url": "./?v=48",
   "scope": "./",
   "display": "standalone",
   "display_override": [
