@@ -149,6 +149,9 @@ input,select,textarea{border-radius:10px;border-color:#dfe6df;background:#fffefa
 .modalback{z-index:2000!important}
 .authback{z-index:2100!important}
 .account-history-note{font-size:11px;color:var(--muted)}
+
+/* Répartition des flux mensuels sur les vignettes d’accueil */
+.monthly-breakdown{display:flex;align-items:center;gap:10px;margin-top:12px;min-width:0}.mini-donut{width:72px;height:72px;flex:0 0 72px;border-radius:50%;position:relative}.mini-donut:after{content:"";position:absolute;inset:13px;background:var(--panel);border-radius:50%}.mini-legend{display:grid;gap:5px;min-width:0;flex:1}.mini-legend-row{display:grid;grid-template-columns:7px minmax(0,1fr) auto;align-items:center;gap:5px;font-size:10px;line-height:1.25}.mini-legend-row .mini-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}.mini-legend-row b{font-size:10px;white-space:nowrap;font-variant-numeric:tabular-nums}.mini-dot{width:7px;height:7px;border-radius:50%}.mini-empty{font-size:10px;color:var(--muted);margin-top:10px}@media(max-width:950px){.monthly-breakdown{gap:14px}.mini-donut{width:82px;height:82px;flex-basis:82px}}
 </style></head>
 <body>
 <div class="app">
@@ -172,8 +175,8 @@ input,select,textarea{border-radius:10px;border-color:#dfe6df;background:#fffefa
 <section class="page active" id="page-dashboard">
  <div class="grid stats">
   <div class="card"><div class="statlabel">Patrimoine net estimé <span>◈</span></div><div class="statvalue" id="netWorth">—</div><div class="statfoot">Actifs moins capitaux restant dus</div></div>
-  <div class="card"><div class="statlabel">Revenus mensuels <span>↗</span></div><div class="statvalue" id="incomeTotal">—</div><div class="statfoot">Opérations récurrentes + loyers locatifs</div></div>
-  <div class="card"><div class="statlabel">Dépenses mensuelles <span>↘</span></div><div class="statvalue" id="expenseTotal">—</div><div class="statfoot">Hors transferts entre vos comptes</div></div>
+  <div class="card"><div class="statlabel">Revenus mensuels <span>↗</span></div><div class="statvalue" id="incomeTotal">—</div><div class="statfoot">Opérations récurrentes + loyers locatifs</div><div class="monthly-breakdown" id="incomeBreakdown"></div></div>
+  <div class="card"><div class="statlabel">Dépenses mensuelles <span>↘</span></div><div class="statvalue" id="expenseTotal">—</div><div class="statfoot">Hors transferts entre vos comptes</div><div class="monthly-breakdown" id="expenseBreakdown"></div></div>
   <div class="card"><div class="statlabel">Capacité mensuelle <span>◎</span></div><div class="statvalue" id="capacity">—</div><div class="statfoot">Revenus moins dépenses récurrentes</div></div>
  </div>
  <div class="card" style="margin-bottom:16px"><div class="sectionhead"><div><h2>Évolution du patrimoine net</h2><p>Historique des valorisations enregistrées au fil du temps</p></div><span class="tag" id="wealthHistoryCount">Suivi depuis aujourd’hui</span></div><div id="wealthHistoryChart" style="width:100%;min-height:220px"></div><div class="tiny" id="wealthHistoryNote" style="margin-top:8px">Une photographie du patrimoine est conservée automatiquement chaque jour où les données évoluent.</div></div>
@@ -428,6 +431,24 @@ function contractForm(){modal('Ajouter un contrat',field('kind','Nature','select
 function goalForm(){modal('Nouvel objectif',field('name','Objectif')+field('target','Montant cible (€)','number','0')+field('current','Montant déjà épargné (€)','number','0')+field('date','Date cible','date',''),d=>db.goals.push({id:id(),...d,target:num(d.target),current:num(d.current)}))}
 function monthlyAmount(x){let a=num(x.amount);return x.period==='Annuelle'?a/12:x.period==='Trimestrielle'?a/3:x.period==='Semestrielle'?a/6:a}
 function transactionMonthlyAmount(x){const a=num(x.amount);switch(x.recurring){case 'Mensuel':case 'Oui':return a;case 'Trimestriel':return a/3;case 'Semestriel':return a/6;case 'Annuel':return a/12;default:return 0}}
+function monthlyBreakdown(type){
+ const groups={};
+ const add=(name,value)=>{const amount=num(value);if(amount>0){const key=String(name||'Autres');groups[key]=(groups[key]||0)+amount}};
+ db.transactions.filter(x=>x.type===type).forEach(x=>add(x.category||(type==='Revenu'?'Autres revenus':'Autres dépenses'),transactionMonthlyAmount(x)));
+ if(type==='Revenu')db.assets.forEach(a=>add('Revenus locatifs',a.rent));
+ if(type==='Dépense'){
+  db.contracts.forEach(x=>add(x.category||'Assurances & abonnements',monthlyAmount(x)));
+  db.credits.forEach(x=>add('Crédits',x.borrowed!==undefined?loanTerms(x).payment:num(x.monthly)));
+  db.assets.forEach(a=>(a.loans||[]).forEach(l=>add('Crédits immobiliers',loanTerms(l).payment)));
+ }
+ const entries=Object.entries(groups).sort((a,b)=>b[1]-a[1]),total=entries.reduce((s,x)=>s+x[1],0);
+ if(!total)return '<div class="mini-empty">Aucune récurrence renseignée</div>';
+ const colors=['#347b65','#6687bd','#d8b66f','#b85f58','#8b79ad','#5c9ca1','#a58a72','#7d8994','#c18baf'];
+ let cursor=0;
+ const slices=entries.map(([name,value],i)=>{const start=cursor;cursor+=value/total*100;return colors[i%colors.length]+' '+start+'% '+cursor+'%'}).join(',');
+ const legend=entries.map(([name,value],i)=>'<div class="mini-legend-row"><i class="mini-dot" style="background:'+colors[i%colors.length]+'"></i><span class="mini-name" title="'+esc(name)+'">'+esc(name)+'</span><b>'+euro(value)+'</b></div>').join('');
+ return '<div class="monthly-breakdown"><div class="mini-donut" style="background:conic-gradient('+slices+')"></div><div class="mini-legend">'+legend+'</div></div>';
+}
 function totals(){let inc=db.transactions.filter(x=>x.type==='Revenu').reduce((s,x)=>s+transactionMonthlyAmount(x),0);let out=db.transactions.filter(x=>x.type==='Dépense').reduce((s,x)=>s+transactionMonthlyAmount(x),0);let contracts=db.contracts.reduce((s,x)=>s+monthlyAmount(x),0);let rents=db.assets.reduce((s,x)=>s+num(x.rent),0);let assetLoanPayments=db.assets.reduce((s,x)=>s+(x.loans||[]).reduce((v,l)=>v+loanTerms(l).payment,0),0);return {inc:inc+rents,out:out+contracts+db.credits.reduce((s,x)=>s+(x.borrowed!==undefined?loanTerms(x).payment:num(x.monthly)),0)+assetLoanPayments,baseInc:inc,baseOut:out,contracts,rents}}
 function table(headers,rows){return `<table><thead><tr>${headers.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.join(''):`<tr><td colspan="${headers.length}" class="empty">Aucune donnée pour le moment</td></tr>`}</tbody></table>`}
 function delButton(kind,id){return `<button class="btn small danger" data-del="${kind}" data-id="${id}">Supprimer</button>`}
@@ -435,7 +456,7 @@ function bindDelete(){document.querySelectorAll('[data-del]').forEach(b=>b.oncli
 function renderDash(){
  recordWealthSnapshot();renderWealthHistory();
  let t=totals(), assets=db.assets.reduce((s,x)=>s+num(x.value),0)+db.accounts.reduce((s,x)=>s+num(x.value),0), debts=db.credits.reduce((s,x)=>s+(x.borrowed!==undefined?loanTerms(x).balance:num(x.capital)),0)+db.assets.reduce((s,a)=>s+(a.loans||[]).reduce((v,l)=>v+loanTerms(l).balance,0),0), net=assets-debts;
- set('netWorth',euro(net));set('incomeTotal',euro(t.inc));document.getElementById('incomeTotal').nextElementSibling.textContent='Dont loyers locatifs : '+euro(t.rents)+' / mois';set('expenseTotal',euro(t.out));set('capacity',euro(t.inc-t.out));set('dashIncome',euro(t.inc));set('dashExpense',euro(t.out));set('dashBalance',euro(t.inc-t.out));
+ set('netWorth',euro(net));document.getElementById('incomeBreakdown').innerHTML=monthlyBreakdown('Revenu');document.getElementById('expenseBreakdown').innerHTML=monthlyBreakdown('Dépense');set('incomeTotal',euro(t.inc));document.getElementById('incomeTotal').nextElementSibling.textContent='Dont loyers locatifs : '+euro(t.rents)+' / mois';set('expenseTotal',euro(t.out));set('capacity',euro(t.inc-t.out));set('dashIncome',euro(t.inc));set('dashExpense',euro(t.out));set('dashBalance',euro(t.inc-t.out));
  let max=Math.max(t.inc,t.out,1);document.getElementById('flowChart').innerHTML=[['Revenus',t.inc],['Dépenses',t.out],['Solde',Math.max(0,t.inc-t.out)]].map(([n,v])=>`<div class="monthbar"><i style="height:${Math.max(2,v/max*100)}%"></i><small>${n}</small></div>`).join('');
  let cats=[['Immobilier',db.assets.filter(a=>a.type.includes('Immobilier')||a.type.includes('Résidence')).reduce((s,a)=>s+a.value,0)],['Comptes & placements',db.accounts.reduce((s,a)=>s+a.value,0)],['Autres actifs',db.assets.filter(a=>!a.type.includes('Immobilier')&&!a.type.includes('Résidence')).reduce((s,a)=>s+a.value,0)]];
  let colors=['#16866b','#6687bd','#d8b66f'];document.getElementById('assetLegend').innerHTML=cats.map((c,i)=>`<div><i class="dot" style="background:${colors[i]}"></i>${c[0]}<br><b>${euro(c[1])}</b></div>`).join('');
@@ -614,7 +635,7 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 installButton.addEventListener('click',async()=>{if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installButton.hidden=true;}else{alert('Pour installer l’application : sur iPhone, ouvrez le menu Partager puis « Sur l’écran d’accueil ». Sur Android, ouvrez le menu ⋮ de Chrome puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');}});
 window.addEventListener('appinstalled',()=>{installButton.hidden=true;});
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){installButton.hidden=false;}
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=44',{updateViaCache:'none'}).catch(()=>{}))}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=54',{updateViaCache:'none'}).catch(()=>{}))}
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 
 /* Menu mobile : initialisation unique après le chargement du DOM */
