@@ -458,33 +458,40 @@ function renderDash(){
  let t=totals(), assets=db.assets.reduce((s,x)=>s+num(x.value),0)+db.accounts.reduce((s,x)=>s+num(x.value),0), debts=db.credits.reduce((s,x)=>s+(x.borrowed!==undefined?loanTerms(x).balance:num(x.capital)),0)+db.assets.reduce((s,a)=>s+(a.loans||[]).reduce((v,l)=>v+loanTerms(l).balance,0),0), net=assets-debts;
  set('netWorth',euro(net));document.getElementById('incomeBreakdown').innerHTML=monthlyBreakdown('Revenu');document.getElementById('expenseBreakdown').innerHTML=monthlyBreakdown('Dépense');set('incomeTotal',euro(t.inc));document.getElementById('incomeTotal').nextElementSibling.textContent='Dont loyers locatifs : '+euro(t.rents)+' / mois';set('expenseTotal',euro(t.out));set('capacity',euro(t.inc-t.out));set('dashIncome',euro(t.inc));set('dashExpense',euro(t.out));set('dashBalance',euro(t.inc-t.out));
  let max=Math.max(t.inc,t.out,1);document.getElementById('flowChart').innerHTML=[['Revenus',t.inc],['Dépenses',t.out],['Solde',Math.max(0,t.inc-t.out)]].map(([n,v])=>`<div class="monthbar"><i style="height:${Math.max(2,v/max*100)}%"></i><small>${n}</small></div>`).join('');
- let cats=[['Immobilier',db.assets.filter(a=>a.type.includes('Immobilier')||a.type.includes('Résidence')).reduce((s,a)=>s+a.value,0)],['Comptes & placements',db.accounts.reduce((s,a)=>s+a.value,0)],['Autres actifs',db.assets.filter(a=>!a.type.includes('Immobilier')&&!a.type.includes('Résidence')).reduce((s,a)=>s+a.value,0)]];
- let colors=['#16866b','#6687bd','#d8b66f'];document.getElementById('assetLegend').innerHTML=cats.map((c,i)=>`<div><i class="dot" style="background:${colors[i]}"></i>${c[0]}<br><b>${euro(c[1])}</b></div>`).join('');
+ let cats=assetDistributionCategories();drawAssetDonuts(cats);
+ const assetTotal=cats.reduce((s,x)=>s+x[1],0),assetColors=['#16866b','#6687bd','#d8b66f'];
+ document.getElementById('assetLegend').innerHTML=cats.map((c,i)=>`<div><i class="dot" style="background:${assetColors[i]}"></i>${c[0]}<br><b>${euro(c[1])}</b> <span class="tiny">${assetTotal?(c[1]/assetTotal*100).toFixed(1).replace('.',',')+' %':'0 %'}</span></div>`).join('')+`<div class="tiny" style="border-top:1px solid var(--line);padding-top:6px">Total : <b>${euro(assetTotal)}</b></div>`;
  let recent=db.transactions.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
  document.getElementById('recentTransactions').innerHTML=table(['Date','Libellé','Profil','Montant'],recent.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.label)}</td><td>${esc(x.owner)}</td><td class="amount ${x.type==='Revenu'?'positive':'negative'}">${x.type==='Revenu'?'+':'−'}${euro(x.amount)}</td></tr>`));
  let alerts=db.contracts.filter(c=>c.next).slice(0,5);document.getElementById('alerts').innerHTML=alerts.length?alerts.map(c=>`<div class="barrow"><span>${esc(c.name)}</span><span>${esc(c.next)}</span><span>${euro(c.amount)}</span></div>`).join(''):'<div class="tiny">Ajoute les dates d’échéance de vos assurances et abonnements pour les suivre ici.</div>';
 }
-function renderDistribution(){
- const cats=[
-  ['Immobilier',db.assets.filter(a=>String(a.type||'').includes('Immobilier')||String(a.type||'').includes('Résidence')).reduce((s,a)=>s+num(a.value),0)],
+function assetDistributionCategories(){
+ const isRealEstate=a=>String(a.type||'').includes('Immobilier')||String(a.type||'').includes('Résidence');
+ return [
+  ['Immobilier',db.assets.filter(isRealEstate).reduce((s,a)=>s+num(a.value),0)],
   ['Comptes & placements',db.accounts.reduce((s,a)=>s+num(a.value),0)],
-  ['Autres actifs',db.assets.filter(a=>!String(a.type||'').includes('Immobilier')&&!String(a.type||'').includes('Résidence')).reduce((s,a)=>s+num(a.value),0)]
+  ['Autres actifs',db.assets.filter(a=>!isRealEstate(a)).reduce((s,a)=>s+num(a.value),0)]
  ];
+}
+function drawAssetDonuts(cats){
  const colors=['#16866b','#6687bd','#d8b66f'],total=cats.reduce((s,x)=>s+x[1],0);
- const gradient=[];let cursor=0;
- cats.forEach((x,i)=>{const next=total?cursor+x[1]/total*100:cursor;gradient.push(colors[i]+' '+cursor+'% '+next+'%');cursor=next});
- const donut='conic-gradient('+(gradient.length?gradient.join(','):'#dce2e9 0 100%')+')';
- document.querySelectorAll('#page-distribution .donut').forEach(el=>{
+ let cursor=0;
+ const gradient=cats.map((x,i)=>{const from=cursor;cursor+=total?x[1]/total*100:0;return colors[i]+' '+from+'% '+cursor+'%'}).join(',');
+ const donut='conic-gradient('+(total?gradient:'#dce2e9 0 100%')+')';
+ document.querySelectorAll('#page-dashboard .donut,#page-distribution .donut').forEach(el=>{
   el.style.background=donut;
   let angle=0;
-  el.innerHTML=cats.map((x,i)=>{
-   const pct=total?x[1]/total*100:0,mid=angle+(pct*3.6)/2;angle+=pct*3.6;
+  el.innerHTML=cats.map(x=>{
+   const pct=total?x[1]/total*100:0,mid=angle+pct*3.6/2;angle+=pct*3.6;
    if(pct<4)return '';
-   const rad=(mid-90)*Math.PI/180,radius=39;
-   const left=50+Math.cos(rad)*radius,top=50+Math.sin(rad)*radius;
+   const rad=(mid-90)*Math.PI/180,radius=39,left=50+Math.cos(rad)*radius,top=50+Math.sin(rad)*radius;
    return '<span style="position:absolute;z-index:2;left:'+left+'%;top:'+top+'%;transform:translate(-50%,-50%);font-size:10px;font-weight:800;color:#fff;text-shadow:0 1px 3px #263238,0 0 3px #263238;white-space:nowrap;pointer-events:none">'+pct.toFixed(1).replace('.',',')+'%</span>';
   }).join('');
  });
+}
+function renderDistribution(){
+ const cats=assetDistributionCategories();
+ drawAssetDonuts(cats);
  const legend=cats.map((x,i)=>'<div><i class="dot" style="background:'+colors[i]+'"></i>'+x[0]+'<br><b>'+euro(x[1])+'</b>'+(total?' <span class="tiny">· '+(x[1]/total*100).toFixed(1).replace('.',',')+' %</span>':'')+'</div>').join('');
  document.getElementById('distributionLegend').innerHTML=legend+'<div style="border-top:1px solid var(--line);padding-top:8px"><b>Total des actifs : '+euro(total)+'</b></div>';
  document.getElementById('distributionAssets').innerHTML=table(['Actif','Catégorie','Valeur'],db.assets.map(a=>'<tr><td><b>'+esc(a.name)+'</b></td><td>'+esc(a.type||'Autre')+'</td><td class="amount">'+euro(a.value)+'</td></tr>'));
@@ -635,7 +642,7 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 installButton.addEventListener('click',async()=>{if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installButton.hidden=true;}else{alert('Pour installer l’application : sur iPhone, ouvrez le menu Partager puis « Sur l’écran d’accueil ». Sur Android, ouvrez le menu ⋮ de Chrome puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');}});
 window.addEventListener('appinstalled',()=>{installButton.hidden=true;});
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){installButton.hidden=false;}
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=54',{updateViaCache:'none'}).catch(()=>{}))}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=55',{updateViaCache:'none'}).catch(()=>{}))}
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 
 /* Menu mobile : initialisation unique après le chargement du DOM */
