@@ -608,7 +608,7 @@ const homeBrand=document.getElementById('homeBrand');
 if(homeBrand){homeBrand.addEventListener('click',()=>go('dashboard'));homeBrand.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();go('dashboard')}})}
 document.getElementById('nav').onclick=e=>{let b=e.target.closest('[data-page]');if(b)go(b.dataset.page)};
 document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
-document.getElementById('quickAdd').onclick=document.getElementById('addTx').onclick=txForm;
+document.getElementById('quickAdd').onclick=()=>txForm();document.getElementById('addTx').onclick=()=>txForm();
 document.getElementById('addAsset').onclick=document.getElementById('addAssetOther').onclick=assetForm;
 document.getElementById('addCredit').onclick=creditForm;document.getElementById('addAccount').onclick=accountForm;document.getElementById('addContract').onclick=contractForm;document.getElementById('addGoal').onclick=goalForm;
 ['txSearch','txType','txOwner'].forEach(id=>document.getElementById(id).addEventListener('input',renderTx));document.getElementById('contractFilter').onchange=renderContracts;
