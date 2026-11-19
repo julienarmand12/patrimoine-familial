@@ -497,7 +497,7 @@ function renderDistribution(){
  document.getElementById('distributionAssets').innerHTML=table(['Actif','Catégorie','Valeur'],db.assets.map(a=>'<tr><td><b>'+esc(a.name)+'</b></td><td>'+esc(a.type||'Autre')+'</td><td class="amount">'+euro(a.value)+'</td></tr>'));
  document.getElementById('distributionAccounts').innerHTML=table(['Support','Type','Titulaire','Valeur'],db.accounts.map(a=>'<tr><td><b>'+esc(a.name)+'</b></td><td>'+esc(a.type||'—')+'</td><td>'+esc(a.owner||'—')+'</td><td class="amount">'+euro(a.value)+'</td></tr>'));
  const debtRows=[...db.credits.map(credit=>({credit,asset:null})),...db.assets.flatMap(asset=>(asset.loans||[]).map(credit=>({credit,asset})))];
- const normalizeDebtName=value=>String(value||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLocaleLowerCase('fr-FR').replace(/\\s+/g,' ').trim().replace(/\\s*\\(\\s*/g,' (').replace(/\\s*\\)/g,')');
+ const normalizeDebtName=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr-FR').replace(/\s+/g,' ').trim().replace(/\s*\(\s*/g,' (').replace(/\s*\)/g,')');
  const classifyDebt=name=>{const n=normalizeDebtName(name),suffix='(?:\\s+(?:residence principale|appartement 1|appartement 2))?';if(new RegExp('^pret immobilier\\s*\\(soulte\\)'+suffix+'
 }
 function set(id,v){document.getElementById(id).textContent=v}
