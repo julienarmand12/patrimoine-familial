@@ -4,7 +4,7 @@
   "short_name": "Patrimoine",
   "description": "Gestion du patrimoine et des finances familiales",
   "lang": "fr-FR",
-  "start_url": "./?v=62",
+  "start_url": "./?v=63",
   "scope": "./",
   "display": "standalone",
   "display_override": [
@@ -16,7 +16,7 @@
   "theme_color": "#061f29",
   "icons": [
     {
-      "src": "patrimoine-app-icon.svg?v=62",
+      "src": "patrimoine-app-icon.svg?v=63",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any"
