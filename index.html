@@ -5,7 +5,7 @@
 <meta name="theme-color" content="#071b49">
 <meta name="description" content="Gestion du patrimoine et des finances familiales">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="patrimoine-app-icon.svg?v=63"><link rel="apple-touch-icon" href="patrimoine-app-icon.svg?v=37">
+<link rel="icon" type="image/png" sizes="192x192" href="patrimoine-app-icon.svg?v=64"><link rel="apple-touch-icon" href="patrimoine-app-icon.svg?v=37">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <title>Patrimoine — Finance familiale</title>
 <style>
@@ -169,7 +169,7 @@ th{background:#f2f7fc;color:#637b98}.tag.green{background:#e7f4fc;color:#075da8}
 <body>
 <div class="app">
 <aside>
- <div class="brand" id="homeBrand" role="button" tabindex="0" aria-label="Revenir à la vue d’ensemble" title="Vue d’ensemble" style="cursor:pointer"><img class="brandmark" src="patrimoine-app-icon.svg?v=63" alt="Logo Patrimoine" width="76" height="76" style="width:76px;height:76px;object-fit:contain"><b>PATRIMOINE</b></div>
+ <div class="brand" id="homeBrand" role="button" tabindex="0" aria-label="Revenir à la vue d’ensemble" title="Vue d’ensemble" style="cursor:pointer"><img class="brandmark" src="patrimoine-app-icon.svg?v=64" alt="Logo Patrimoine" width="76" height="76" style="width:76px;height:76px;object-fit:contain"><b>PATRIMOINE</b></div>
  <div><div class="navlabel">Pilotage</div><nav id="nav">
  <button class="navbtn active" data-page="dashboard"><span class="ico">▦</span>Vue d'ensemble</button>
  <button class="navbtn" data-page="transactions"><span class="ico">↕</span>Revenus & dépenses</button>
@@ -661,7 +661,7 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 installButton.addEventListener('click',async()=>{if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installButton.hidden=true;}else{alert('Pour installer l’application : sur iPhone, ouvrez le menu Partager puis « Sur l’écran d’accueil ». Sur Android, ouvrez le menu ⋮ de Chrome puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');}});
 window.addEventListener('appinstalled',()=>{installButton.hidden=true;});
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){installButton.hidden=false;}
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=63',{updateViaCache:'none'}).catch(()=>{}))}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=64',{updateViaCache:'none'}).catch(()=>{}))}
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 
 /* Menu mobile : initialisation unique après le chargement du DOM */
