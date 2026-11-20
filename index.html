@@ -5,7 +5,7 @@
 <meta name="theme-color" content="#071b49">
 <meta name="description" content="Gestion du patrimoine et des finances familiales">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="patrimoine-app-icon.svg?v=64"><link rel="apple-touch-icon" href="patrimoine-app-icon.svg?v=37">
+<link rel="icon" type="image/png" sizes="192x192" href="patrimoine-app-icon.svg?v=65"><link rel="apple-touch-icon" href="patrimoine-app-icon.svg?v=37">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <title>Patrimoine — Finance familiale</title>
 <style>
@@ -165,11 +165,17 @@ input,select,textarea{border-color:#dce8f3}input:focus,select:focus,textarea:foc
 th{background:#f2f7fc;color:#637b98}.tag.green{background:#e7f4fc;color:#075da8}.syncdot.on{background:#22a9e8;box-shadow:0 0 0 3px rgba(34,169,232,.18)}
 .notice{background:#fff8e8;border-color:#f1dfb5;color:#785b25}
 @media(max-width:950px){aside{background:linear-gradient(180deg,#0b2c66,#071b49)}aside>div:nth-child(2){background:#092858!important;border-color:#174578!important}}
+
+/* Défilement horizontal tactile du tableau des dernières opérations sur mobile */
+.recent-transactions-scroll{display:block;width:100%;max-width:100%;min-width:0;overflow-x:auto!important;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y;scrollbar-width:thin;position:relative}
+.recent-transactions-scroll>table{width:max-content!important;min-width:620px!important;max-width:none!important;table-layout:auto}
+.recent-transactions-scroll th,.recent-transactions-scroll td{white-space:nowrap}
+@media(max-width:520px){.recent-transactions-scroll{margin-left:0;margin-right:0;padding-bottom:4px}.recent-transactions-scroll::-webkit-scrollbar{height:5px}.recent-transactions-scroll::-webkit-scrollbar-thumb{background:#0876ce;border-radius:8px}.recent-transactions-scroll::-webkit-scrollbar-track{background:#e7f4fc}}
 </style></head>
 <body>
 <div class="app">
 <aside>
- <div class="brand" id="homeBrand" role="button" tabindex="0" aria-label="Revenir à la vue d’ensemble" title="Vue d’ensemble" style="cursor:pointer"><img class="brandmark" src="patrimoine-app-icon.svg?v=64" alt="Logo Patrimoine" width="76" height="76" style="width:76px;height:76px;object-fit:contain"><b>PATRIMOINE</b></div>
+ <div class="brand" id="homeBrand" role="button" tabindex="0" aria-label="Revenir à la vue d’ensemble" title="Vue d’ensemble" style="cursor:pointer"><img class="brandmark" src="patrimoine-app-icon.svg?v=65" alt="Logo Patrimoine" width="76" height="76" style="width:76px;height:76px;object-fit:contain"><b>PATRIMOINE</b></div>
  <div><div class="navlabel">Pilotage</div><nav id="nav">
  <button class="navbtn active" data-page="dashboard"><span class="ico">▦</span>Vue d'ensemble</button>
  <button class="navbtn" data-page="transactions"><span class="ico">↕</span>Revenus & dépenses</button>
@@ -198,7 +204,7 @@ th{background:#f2f7fc;color:#637b98}.tag.green{background:#e7f4fc;color:#075da8}
   <div class="card"><div class="sectionhead"><div><h2>Répartition du patrimoine</h2><p>Valeurs enregistrées par catégorie</p></div><button class="btn small" type="button" data-go="distribution">Voir tout</button></div><div class="donutwrap"><div class="donut"></div><div class="legend" id="assetLegend"></div></div></div>
  </div>
  <div class="grid two" style="margin-top:16px">
-  <div class="card"><div class="sectionhead"><div><h2>Dernières opérations</h2><p>Historique familial</p></div><button class="btn small" data-go="transactions">Tout voir</button></div><div id="recentTransactions"></div></div>
+  <div class="card"><div class="sectionhead"><div><h2>Dernières opérations</h2><p>Historique familial</p></div><button class="btn small" data-go="transactions">Tout voir</button></div><div id="recentTransactions" class="tablewrap recent-transactions-scroll"></div></div>
   <div class="card"><div class="sectionhead"><div><h2>À surveiller</h2><p>Échéances et informations importantes</p></div><button class="btn small" data-go="contracts">Gérer</button></div><div id="alerts" class="barlist"></div></div>
  </div>
 </section>
@@ -661,7 +667,7 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 installButton.addEventListener('click',async()=>{if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installButton.hidden=true;}else{alert('Pour installer l’application : sur iPhone, ouvrez le menu Partager puis « Sur l’écran d’accueil ». Sur Android, ouvrez le menu ⋮ de Chrome puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');}});
 window.addEventListener('appinstalled',()=>{installButton.hidden=true;});
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){installButton.hidden=false;}
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=64',{updateViaCache:'none'}).catch(()=>{}))}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=65',{updateViaCache:'none'}).catch(()=>{}))}
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 
 /* Menu mobile : initialisation unique après le chargement du DOM */
