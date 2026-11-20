@@ -171,11 +171,22 @@ th{background:#f2f7fc;color:#637b98}.tag.green{background:#e7f4fc;color:#075da8}
 .recent-transactions-scroll>table{width:max-content!important;min-width:620px!important;max-width:none!important;table-layout:auto}
 .recent-transactions-scroll th,.recent-transactions-scroll td{white-space:nowrap}
 @media(max-width:520px){.recent-transactions-scroll{margin-left:0;margin-right:0;padding-bottom:4px}.recent-transactions-scroll::-webkit-scrollbar{height:5px}.recent-transactions-scroll::-webkit-scrollbar-thumb{background:#0876ce;border-radius:8px}.recent-transactions-scroll::-webkit-scrollbar-track{background:#e7f4fc}}
+
+/* Rappel périodique des valorisations */
+.valuation-reminder{position:fixed;inset:0;z-index:10000;background:rgba(3,15,38,.72);display:none;align-items:center;justify-content:center;padding:18px}
+.valuation-reminder.show{display:flex}
+.valuation-reminder-card{width:min(440px,100%);background:#fff;border-radius:22px;padding:25px;box-shadow:0 24px 70px rgba(0,0,0,.3);border:1px solid #d9e8f7;color:#10264b}
+.valuation-reminder-icon{font-size:34px;margin-bottom:10px}
+.valuation-reminder-card h2{margin:0 0 10px;font-size:22px;color:#071b49}
+.valuation-reminder-card p{line-height:1.55;color:#52647d;margin:0 0 18px}
+.valuation-reminder-actions{display:flex;flex-wrap:wrap;gap:9px}
+.valuation-reminder-actions button{flex:1;min-width:130px}
+.valuation-reminder-note{font-size:12px!important;margin-top:14px!important;margin-bottom:0!important}
 </style></head>
 <body>
 <div class="app">
 <aside>
- <div class="brand" id="homeBrand" role="button" tabindex="0" aria-label="Revenir à la vue d’ensemble" title="Vue d’ensemble" style="cursor:pointer"><img class="brandmark" src="patrimoine-app-icon.svg?v=65" alt="Logo Patrimoine" width="76" height="76" style="width:76px;height:76px;object-fit:contain"><b>PATRIMOINE</b></div>
+ <div class="brand" id="homeBrand" role="button" tabindex="0" aria-label="Revenir à la vue d’ensemble" title="Vue d’ensemble" style="cursor:pointer"><img class="brandmark" src="patrimoine-app-icon.svg?v=66" alt="Logo Patrimoine" width="76" height="76" style="width:76px;height:76px;object-fit:contain"><b>PATRIMOINE</b></div>
  <div><div class="navlabel">Pilotage</div><nav id="nav">
  <button class="navbtn active" data-page="dashboard"><span class="ico">▦</span>Vue d'ensemble</button>
  <button class="navbtn" data-page="transactions"><span class="ico">↕</span>Revenus & dépenses</button>
@@ -271,6 +282,8 @@ th{background:#f2f7fc;color:#637b98}.tag.green{background:#e7f4fc;color:#075da8}
 </main></div>
 
 <div class="modalback" id="modal"><div class="modal"><div class="modalhead"><h2 id="modalTitle">Ajouter</h2><button class="close" id="closeModal">×</button></div><form id="modalForm"><div id="modalFields" class="formgrid"></div><div class="actions" style="justify-content:flex-end;margin-top:18px"><button type="button" class="btn" id="cancelModal">Annuler</button><button class="btn primary" type="submit">Enregistrer</button></div></form></div></div>
+
+<div class="valuation-reminder" id="valuationReminder" role="dialog" aria-modal="true" aria-labelledby="valuationReminderTitle"><div class="valuation-reminder-card"><div class="valuation-reminder-icon">📊</div><div class="eyebrow">PATRIMOINE · RAPPEL MENSUEL</div><h2 id="valuationReminderTitle">Mise à jour des valorisations</h2><p>C’est le moment de mettre à jour la valeur de tes comptes et placements afin de garder une vision juste de ton patrimoine.</p><div class="valuation-reminder-actions"><button class="btn primary" id="valuationUpdateNow">Mettre à jour</button><button class="btn" id="valuationLater">Plus tard</button><button class="btn" id="valuationEnableNotifications">Activer les notifications</button></div><p class="valuation-reminder-note" id="valuationReminderStatus">Rappel prévu les 11 et 21 de chaque mois à 10 h.</p></div></div>
 <div class="authback" id="authBack"><div class="authbox"><div class="sectionhead"><div><div class="eyebrow">PATRIMOINE · ESPACE FAMILIAL</div><h2>Connexion et synchronisation</h2><p>Connecte l'application à votre espace partagé pour retrouver les mêmes données sur vos deux téléphones.</p></div><button class="close" id="authClose">×</button></div>
 <div class="authstatus" id="authStatus">Configuration requise : renseigne l'URL et la clé publique de ton projet Supabase.</div>
 <div class="authgrid"><label>URL du projet Supabase<input id="sbUrl" placeholder="https://xxxxxxxx.supabase.co"></label><label>Clé publique (anon / publishable)<input id="sbKey" placeholder="eyJhbGciOi..." autocomplete="off"></label><div class="authactions"><button class="btn primary" id="saveConfig">Enregistrer la configuration</button><button class="btn" id="testConfig">Tester la connexion</button></div></div>
@@ -667,7 +680,7 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 installButton.addEventListener('click',async()=>{if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installButton.hidden=true;}else{alert('Pour installer l’application : sur iPhone, ouvrez le menu Partager puis « Sur l’écran d’accueil ». Sur Android, ouvrez le menu ⋮ de Chrome puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');}});
 window.addEventListener('appinstalled',()=>{installButton.hidden=true;});
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){installButton.hidden=false;}
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=65',{updateViaCache:'none'}).catch(()=>{}))}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=66',{updateViaCache:'none'}).catch(()=>{}))}
 if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(refreshAuthState,0);else{cloudHousehold=null;setSync('Mode local',false)}});refreshAuthState().catch(console.error)}
 
 /* Menu mobile : initialisation unique après le chargement du DOM */
@@ -697,5 +710,38 @@ if(initSupabase()){setSync('Connexion…',false);sb.auth.onAuthStateChange((_eve
  });
 })();
 
+
+// --- Rappels des valorisations : les 11 et 21 de chaque mois à 10 h ---
+const VALUATION_REMINDER_KEY='patrimoine-valuation-reminder-v1';
+function valuationPeriodKey(d=new Date()){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+d.getDate()}
+function valuationReminderDue(d=new Date()){return (d.getDate()===11||d.getDate()===21)&&(d.getHours()>10||(d.getHours()===10&&d.getMinutes()>=0))}
+function valuationReminderState(){try{return JSON.parse(localStorage.getItem(VALUATION_REMINDER_KEY)||'{}')}catch{return {}}}
+function showValuationReminder(){
+ const key=valuationPeriodKey(),state=valuationReminderState();
+ if(!valuationReminderDue()||state.completed===key||state.notified===key)return;
+ document.getElementById('valuationReminder').classList.add('show');
+ state.notified=key;localStorage.setItem(VALUATION_REMINDER_KEY,JSON.stringify(state));
+ if('Notification' in window&&Notification.permission==='granted'){
+  const options={body:'Pense à actualiser les valeurs de tes comptes et placements.',icon:'./patrimoine-app-icon.svg?v=66',tag:'valorisations-'+key,renotify:false};
+  if('serviceWorker' in navigator)navigator.serviceWorker.ready.then(reg=>reg.showNotification('Patrimoine — valorisations à mettre à jour',options)).catch(()=>{});
+  else try{new Notification('Patrimoine — valorisations à mettre à jour',options)}catch(e){}
+ }
+}
+function checkValuationReminder(){showValuationReminder()}
+document.getElementById('valuationUpdateNow').onclick=()=>{
+ const state=valuationReminderState();state.completed=valuationPeriodKey();localStorage.setItem(VALUATION_REMINDER_KEY,JSON.stringify(state));
+ document.getElementById('valuationReminder').classList.remove('show');go('accounts');
+};
+document.getElementById('valuationLater').onclick=()=>document.getElementById('valuationReminder').classList.remove('show');
+document.getElementById('valuationEnableNotifications').onclick=async()=>{
+ const status=document.getElementById('valuationReminderStatus');
+ if(!('Notification' in window)){status.textContent='Les notifications système ne sont pas prises en charge par ce navigateur.';return}
+ try{const permission=await Notification.requestPermission();status.textContent=permission==='granted'?'Notifications activées. Tu recevras une notification à chaque échéance lorsque l’application peut vérifier le rappel.':permission==='denied'?'Notifications refusées dans les réglages du navigateur. La fenêtre dans l’application restera active.':'Autorisation non accordée.';if(permission==='granted'){const key=valuationPeriodKey();try{const reg=await navigator.serviceWorker.ready;await reg.showNotification('Notifications Patrimoine activées',{body:'Rappel de valorisation les 11 et 21 de chaque mois à 10 h.',icon:'./patrimoine-app-icon.svg?v=66',tag:'valorisations-activation'})}catch(e){}}}
+ catch(e){status.textContent='Impossible d’activer les notifications sur cet appareil.'}
+};
+setInterval(checkValuationReminder,30000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkValuationReminder()});
+
 renderAll();
+checkValuationReminder();
 </script></body></html>
